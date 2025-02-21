@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+  
+  <!-- Security Headers -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: https: wss:; object-src 'none'">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="scompass_07">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>scompass_07</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Security Script -->
+  <script>
+    (function() {
+      // Disable right-click
+      document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        return false;
+      });
+
+      // Disable keyboard shortcuts
+      document.addEventListener('keydown', function(e) {
+        if (
+          (e.ctrlKey && e.shiftKey && (e.key.toLowerCase() === 'i' || e.key.toLowerCase() === 'j' || e.key.toLowerCase() === 'c')) ||
+          (e.ctrlKey && (e.key.toLowerCase() === 'u' || e.key.toLowerCase() === 's')) ||
+          e.key === 'F12'
+        ) {
+          e.preventDefault();
+          return false;
+        }
+      });
+
+      // Anti-debugging
+      const antiDebug = function() {
+        function detect() {
+          const checks = {
+            devtools: window.devtools?.isOpen || false,
+            firebug: window.Firebug?.chrome?.isInitialized || false,
+            elements: false
+          };
+
+          const widthThreshold = window.outerWidth - window.innerWidth > 160;
+          const heightThreshold = window.outerHeight - window.innerHeight > 160;
+          checks.elements = widthThreshold || heightThreshold;
+
+          return checks.devtools || checks.firebug || checks.elements;
+        }
+
+        if(detect()) {
+          document.body.innerHTML = 'Developer tools detected. Please close them to continue.';
+          while(true) {
+            debugger;
+          }
+        }
+      };
+
+      // Enhanced extension detection and blocking
+      const detectExtensions = function() {
+        const originalSetTimeout = window.setTimeout;
+        const originalSetInterval = window.setInterval;
+        const bannedApis = ['chrome', '__REACT_DEVTOOLS_GLOBAL_HOOK__', 'browser'];
+
+        // Override document.documentElement to return empty content for extensions
+        const originalDocumentElement = document.documentElement;
+        Object.defineProperty(document, 'documentElement', {
+          get: function() {
+            const caller = Error().stack;
+            if (caller && (caller.includes('chrome-extension://') || caller.includes('moz-extension://'))) {
+              const emptyElement = document.createElement('html');
+              emptyElement.innerHTML = '';
+              return emptyElement;
+            }
+            return originalDocumentElement;
+          }
+        });
+
+        // Block extension APIs
+        bannedApis.forEach(api => {
+          if (window[api]) {
+            Object.defineProperty(window, api, {
+              get: function() { return undefined; },
+              set: function() { return false; }
+            });
+          }
+        });
+
+        // Prevent extension content scripts
+        const blockContentScript = function() {
+          if (document.currentScript && 
+              (document.currentScript.src.includes('chrome-extension://') || 
+               document.currentScript.src.includes('moz-extension://'))) {
+            document.currentScript.remove();
+          }
+        };
+        const observer = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+              if (node.tagName === 'SCRIPT') {
+                blockContentScript();
+              }
+            });
+          });
+        });
+        observer.observe(document, { childList: true, subtree: true });
+
+        // Protect against timing attacks
+        window.setTimeout = function(fn, delay) {
+          if (delay < 0) return;
+          return originalSetTimeout(fn, delay);
+        };
+
+        window.setInterval = function(fn, delay) {
+          if (delay < 0) return;
+          return originalSetInterval(fn, delay);
+        };
+      };
+
+      // Prevent iframe embedding
+      if (window.self !== window.top) {
+        window.top.location = window.self.location;
+      }
+      // Additional script protection
+      const obfuscateScripts = function() {
+        const observer = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+              if (node.tagName === 'SCRIPT') {
+                const originalContent = node.textContent;
+                node.textContent = '';
+                Object.defineProperty(node, 'innerHTML', {
+                  get: function() {
+                    const caller = Error().stack;
+                    return caller && (caller.includes('chrome-extension://') || caller.includes('moz-extension://')) ? '' : originalContent;
+                  },
+                  set: function() { return false; }
+                });
+              }
+            });
+          });
+        });
+        observer.observe(document, { childList: true, subtree: true });
+      };
+      // Run all protections
+      setInterval(antiDebug, 1000);
+      detectExtensions();
+      protectScriptContent();
+      obfuscateScripts();
+      // Prevent web scrapers
+      Object.defineProperty(navigator, 'plugins', {
+        get: function() { return []; }
+      });
+
+      // Additional protection against automated tools
+      window.addEventListener('DOMContentLoaded', function() {
+        document.body.addEventListener('copy', function(e) {
+          e.preventDefault();
+          return false;
+        });
+      });
+    })();
+  </script>
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
