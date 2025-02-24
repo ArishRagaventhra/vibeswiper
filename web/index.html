@@ -8,7 +8,7 @@
   <meta name="description" content="A new Flutter project.">
   
   <!-- Security Headers -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: https: wss:; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https: wss:; object-src 'none'; img-src 'self' data: blob: https:">
   <meta http-equiv="X-Frame-Options" content="DENY">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
@@ -78,11 +78,14 @@
         const bannedApis = ['chrome', '__REACT_DEVTOOLS_GLOBAL_HOOK__', 'browser'];
 
         // Override document.documentElement to return empty content for extensions
+        // but allow blob URLs and image loading
         const originalDocumentElement = document.documentElement;
         Object.defineProperty(document, 'documentElement', {
           get: function() {
             const caller = Error().stack;
-            if (caller && (caller.includes('chrome-extension://') || caller.includes('moz-extension://'))) {
+            if (caller && 
+                (caller.includes('chrome-extension://') || caller.includes('moz-extension://')) && 
+                !caller.includes('blob:')) {
               const emptyElement = document.createElement('html');
               emptyElement.innerHTML = '';
               return emptyElement;
