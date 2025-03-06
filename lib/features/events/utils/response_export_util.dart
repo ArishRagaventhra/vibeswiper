@@ -16,15 +16,13 @@ class ResponseExportUtil {
     final sdkInt = androidInfo.version.sdkInt;
 
     if (sdkInt >= 33) {
-      // Android 13 and above: Request media permissions
-      final photos = await Permission.photos.request();
-      return photos.isGranted;
-    } else if (sdkInt >= 30) {
-      // Android 11 and 12: Request manage external storage
-      final status = await Permission.manageExternalStorage.request();
-      return status.isGranted;
+      // Android 13 and above: No permission needed for Downloads
+      return true;
+    } else if (sdkInt >= 29) {
+      // Android 10 and above: No permission needed for Downloads
+      return true;
     } else {
-      // Below Android 11: Request regular storage permission
+      // Below Android 10: Request regular storage permission
       final status = await Permission.storage.request();
       return status.isGranted;
     }
@@ -32,31 +30,13 @@ class ResponseExportUtil {
 
   static Future<String> getPublicDownloadPath() async {
     if (Platform.isAndroid) {
-      // Get the public Downloads directory path
-      Directory? directory;
-      
-      if (await Permission.manageExternalStorage.isGranted) {
-        // Try to get the primary external storage directory
-        final List<Directory>? extDirs = await getExternalStorageDirectories();
-        if (extDirs != null && extDirs.isNotEmpty) {
-          final String path = extDirs[0].path;
-          // Navigate up to find the root external storage
-          final String rootPath = path.split('Android')[0];
-          directory = Directory('$rootPath/Download');
-        }
+      final directory = await getExternalStorageDirectory();
+      if (directory != null) {
+        return directory.path;
       }
-      
-      // Fallback to default download directory if couldn't get external storage
-      if (directory == null) {
-        directory = Directory('/storage/emulated/0/Download');
-      }
-
-      // Create directory if it doesn't exist
-      if (!await directory.exists()) {
-        await directory.create(recursive: true);
-      }
-      
-      return directory.path;
+      // Fallback to app-specific directory
+      final appDir = await getApplicationDocumentsDirectory();
+      return appDir.path;
     } else {
       final directory = await getApplicationDocumentsDirectory();
       return directory.path;
@@ -118,6 +98,15 @@ class ResponseExportUtil {
           mimeType: MimeType.microsoftExcel,
         );
         return 'File downloaded successfully';
+      } else if (Platform.isAndroid) {
+        // Use MediaStore API for Android
+        final result = await FileSaver.instance.saveAs(
+          name: fileName.replaceAll('.xlsx', ''),
+          bytes: Uint8List.fromList(bytes),
+          ext: 'xlsx',
+          mimeType: MimeType.microsoftExcel,
+        );
+        return result ?? 'File saved successfully';
       } else {
         final downloadPath = await getPublicDownloadPath();
         final filePath = '$downloadPath/$fileName';
