@@ -29,8 +29,10 @@ import '../providers/event_providers.dart';
 // Local imports - Widgets
 import '../../../config/theme.dart';
 import '../../../shared/widgets/loading_widget.dart';
+import '../repositories/event_response_repository.dart';
 import '../widgets/access_code_bottom_sheet.dart';
 import '../widgets/event_action_dialog.dart';
+import '../widgets/event_join_requirements_dialog.dart';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
 
 class EventDetailsScreen extends ConsumerStatefulWidget {
@@ -53,7 +55,8 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadEventDetails();
+    // Wrap in Future.microtask to ensure it runs after the build
+    Future.microtask(() => _loadEventDetails());
   }
 
   @override
@@ -70,19 +73,25 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
 
     debugPrint('Loading event details for event ID: $eventId');
     
-    // Load event details
-    ref.read(eventDetailsProvider(eventId));
-    
-    // Load participants
-    await ref.read(eventParticipantControllerProvider.notifier).loadParticipants(eventId);
-    
-    // Check participation status
-    final participationStatus = await ref.read(userParticipationProvider((
-      eventId: eventId,
-      userId: currentUser.id,
-    )));
-    
-    debugPrint('Initial participation status for user ${currentUser.id}: $participationStatus');
+    try {
+      // Load event details
+      ref.read(eventDetailsProvider(eventId));
+      
+      // Load participants using Future.microtask
+      Future.microtask(() async {
+        await ref.read(eventParticipantControllerProvider.notifier).loadParticipants(eventId);
+      });
+      
+      // Check participation status
+      final participationStatus = await ref.read(userParticipationProvider((
+        eventId: eventId,
+        userId: currentUser.id,
+      )));
+      
+      debugPrint('Initial participation status for user ${currentUser.id}: $participationStatus');
+    } catch (e) {
+      debugPrint('Error loading event details: $e');
+    }
   }
 
   @override
@@ -100,8 +109,8 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
     final size = MediaQuery.of(context).size;
     final padding = MediaQuery.of(context).padding;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final appBarColor = isDark ? Colors.black : Colors.white;
-    final foregroundColor = isDark ? Colors.white : Colors.black;
+    final appBarColor = isDark ? AppTheme.darkBackgroundColor : Colors.white;
+    final foregroundColor = isDark ? AppTheme.darkPrimaryTextColor : AppTheme.primaryTextColor;
     
     // Calculate responsive dimensions
     final imageHeight = size.height * 0.45;
@@ -144,47 +153,10 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                       ),
                       actions: [
                         if (isCreator)
-                          PopupMenuButton<String>(
-                            icon: Icon(
-                              Icons.more_vert,
-                              color: foregroundColor,
-                            ),
-                            onSelected: (value) => _handleEventAction(value, event),
-                            color: appBarColor,
-                            itemBuilder: (context) => [
-                              PopupMenuItem(
-                                value: 'cancel',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.cancel,
-                                      color: foregroundColor,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Cancel Event',
-                                      style: TextStyle(color: foregroundColor),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.delete_forever,
-                                      color: theme.colorScheme.error,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Delete Event',
-                                      style: TextStyle(color: theme.colorScheme.error),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                          IconButton(
+                            icon: const Icon(Icons.assessment_outlined),
+                            tooltip: 'Event Dashboard',
+                            onPressed: () => context.push('/events/${event.id}/dashboard'),
                           ),
                         IconButton(
                           icon: Icon(
@@ -519,7 +491,7 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                       if (isParticipant || isCreator) {
                                         _handleLeaveEvent(); // Leave if participant or creator
                                       } else {
-                                        _handleJoinEvent(); // Join if not a participant
+                                        _handleJoinEvent(event); // Join if not a participant
                                       }
                                     },
                                     style: ElevatedButton.styleFrom(
@@ -659,6 +631,10 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
   }
 
   Widget _buildParticipantsSection(String eventId) {
+    final currentUser = ref.watch(currentUserProvider);
+    final event = ref.watch(eventDetailsProvider(eventId)).value;
+    final isCreator = currentUser != null && event?.creatorId == currentUser.id;
+
     return Consumer(
       builder: (context, ref, child) {
         final participantsAsync = ref.watch(eventParticipantControllerProvider);
@@ -724,60 +700,62 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
     );
   }
 
-  Future<void> _handleJoinEvent() async {
+  Future<void> _handleJoinEvent(Event event) async {
     final currentUser = ref.read(currentUserProvider);
-    if (currentUser == null) return;
-
-    final event = await ref.read(eventDetailsProvider(widget.eventId).future);
-    if (event == null) return;
-
-    debugPrint('Attempting to join event: ${event.id} by user: ${currentUser.id}');
-    debugPrint('Event visibility: ${event.visibility}');
+    if (currentUser == null) {
+      context.go('/login');
+      return;
+    }
 
     try {
-      // Check if event is private
-      if (event.visibility == EventVisibility.private) {
-        debugPrint('Event is private, showing access code bottom sheet');
-        // Show access code bottom sheet
-        final success = await AccessCodeBottomSheet.show(
-          context,
-          eventId: event.id,
-          eventTitle: event.title,
+      // Check if user has already completed requirements
+      final responseRepo = ref.read(eventResponseRepositoryProvider);
+      final hasCompleted = await responseRepo.hasCompletedRequirements(
+        event.id,
+        currentUser.id,
+      );
+
+      if (!hasCompleted) {
+        // Show requirements dialog
+        final completed = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => EventJoinRequirementsDialog(event: event),
         );
 
-        // If access code was not provided or invalid, return
-        if (success != true) {
-          debugPrint('Access code verification failed or cancelled');
-          return;
-        }
-        debugPrint('Access code verified successfully');
-      } else {
-        // For public events, directly join
-        debugPrint('Event is public, joining directly');
-        await ref
-            .read(eventParticipantControllerProvider.notifier)
-            .joinEvent(event.id, currentUser.id);
+        if (completed != true) return; // User cancelled or failed to complete
       }
-      
-      debugPrint('Successfully joined event: ${event.id}');
-      
-      // Invalidate both providers to ensure fresh data
+
+      // Now join the event
+      await ref.read(eventParticipantControllerProvider.notifier).joinEvent(
+        event.id,
+        currentUser.id,
+      );
+
+      // Invalidate relevant providers to refresh UI
       ref.invalidate(userParticipationProvider((
         eventId: event.id,
         userId: currentUser.id,
       )));
       ref.invalidate(eventParticipantControllerProvider);
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Successfully joined event')),
-      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Successfully joined the event!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      debugPrint('Failed to join event: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to join event')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to join event: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

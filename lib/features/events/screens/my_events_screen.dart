@@ -183,12 +183,9 @@ class _JoinedEventsTab extends ConsumerWidget {
       data: (events) {
         final filteredEvents = events.where((event) {
           final isPaidEvent = event.eventType == EventType.paid;
-          final hasSuccessfulPayment = isPaidEvent ? 
-              (ref.read(paymentProvider).when(
-                data: (payments) => payments.any((payment) => payment.eventId == event.id && payment.status == 'success'),
-                loading: () => false,
-                error: (_, __) => false,
-              )) : true;
+          final hasSuccessfulPayment = isPaidEvent 
+              ? ref.watch(eventPaymentStatusProvider(event.id))
+              : true;
           return (event.ticketPrice == 0 || hasSuccessfulPayment);
         }).toList();
 
@@ -218,12 +215,9 @@ class _CreatedEventsTab extends ConsumerWidget {
       data: (events) {
         final filteredEvents = events.where((event) {
           final isPaidEvent = event.eventType == EventType.paid;
-          final hasSuccessfulPayment = isPaidEvent ? 
-              (ref.read(paymentProvider).when(
-                data: (payments) => payments.any((payment) => payment.eventId == event.id && payment.status == 'success'),
-                loading: () => false,
-                error: (_, __) => false,
-              )) : true;
+          final hasSuccessfulPayment = isPaidEvent 
+              ? ref.watch(eventPaymentStatusProvider(event.id))
+              : true;
           return (event.ticketPrice == 0 || hasSuccessfulPayment);
         }).toList();
 
@@ -321,7 +315,15 @@ Widget _buildEventsList(BuildContext context, List<Event> events, String type) {
             verticalOffset: 50.0,
             child: FadeInAnimation(
               child: GestureDetector(
-                onTap: () => context.push('/events/${event.id}'),
+                onTap: () {
+                  // Delay the navigation to avoid state modification during build
+                  Future(() {
+                    context.pushNamed(
+                      'event-details',
+                      pathParameters: {'eventId': event.id},
+                    );
+                  });
+                },
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(

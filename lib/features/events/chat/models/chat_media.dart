@@ -19,6 +19,7 @@ class ChatMedia with _$ChatMedia {
     String? thumbnailUrl,
     String? fileName,
     String? mimeType,
+    int? fileSize,
   }) = _ChatMedia;
 
   factory ChatMedia.fromJson(Map<String, dynamic> json) => _$ChatMediaFromJson(json);
@@ -33,6 +34,7 @@ class ChatMedia with _$ChatMedia {
       thumbnailUrl: map['thumbnail_url'] as String?,
       fileName: map['file_name'] as String?,
       mimeType: map['mime_type'] as String?,
+      fileSize: map['file_size'] as int?,
     );
   }
 
@@ -43,6 +45,7 @@ class ChatMedia with _$ChatMedia {
       if (thumbnailUrl != null) 'thumbnail_url': thumbnailUrl,
       if (fileName != null) 'file_name': fileName,
       if (mimeType != null) 'mime_type': mimeType,
+      if (fileSize != null) 'file_size': fileSize,
     };
   }
 }

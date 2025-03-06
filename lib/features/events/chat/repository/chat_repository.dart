@@ -153,6 +153,29 @@ class ChatRepository {
     ChatMedia? media,
   }) async {
     try {
+      // Map MessageType to database message_type
+      String dbMessageType;
+      String dbType;
+      
+      switch (type) {
+        case MessageType.file:
+          dbMessageType = 'text';  // For files, we use 'text' as message_type
+          dbType = 'file';        // and 'file' as type
+          break;
+        case MessageType.text:
+          dbMessageType = 'text';
+          dbType = 'text';
+          break;
+        case MessageType.image:
+          dbMessageType = 'image';
+          dbType = 'image';
+          break;
+        case MessageType.video:
+          dbMessageType = 'video';
+          dbType = 'text';  // Since video isn't allowed in type constraint
+          break;
+      }
+
       // Create the message
       final messageData = await _supabase
           .from('event_chat_messages')
@@ -160,18 +183,23 @@ class ChatRepository {
             'chat_room_id': roomId,
             'sender_id': _supabase.auth.currentUser!.id,
             'content': content,
-            'message_type': type.toString().split('.').last,
+            'message_type': dbMessageType,
+            'type': dbType,
             if (media != null) ...{
               'media_url': media.url,
-              'media_type': media.type.toString().split('.').last,
+              'media_type': type.toString().split('.').last.toLowerCase(),
+              'thumbnail_url': media.thumbnailUrl,
+              'file_name': media.fileName,
+              'mime_type': media.mimeType,
+              'file_size': media.fileSize,  // Add file size to the message
             },
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           })
-          .select('*, sender:sender_id(id, username, full_name, avatar_url)')
+          .select()
           .single();
 
-      // Get sender profile
+      // Get sender profile in a separate query
       final senderProfile = await _supabase
           .from('profiles')
           .select()
@@ -193,16 +221,36 @@ class ChatRepository {
     required String content,
     ChatMedia? media,
   }) async {
+    String? dbMessageType;
+    String? dbType;
+
+    if (media != null) {
+      switch (media.type) {
+        case MediaType.file:
+          dbMessageType = 'text';
+          dbType = 'file';
+          break;
+        case MediaType.image:
+          dbMessageType = 'image';
+          dbType = 'image';
+          break;
+        case MediaType.video:
+          dbMessageType = 'video';
+          dbType = 'text';
+          break;
+      }
+    }
+
     await _supabase
         .from('event_chat_messages')
         .update({
           'content': content,
           if (media != null) ...{
             'media_url': media.url,
-            'media_type': media.type.toString().split('.').last,
-            'message_type': 'image',
-            'type': 'image',
-            'thumbnail_url': media.url,
+            'media_type': media.type.toString().split('.').last.toLowerCase(),
+            'message_type': dbMessageType,
+            'type': dbType,
+            'thumbnail_url': media.thumbnailUrl,
             'file_name': media.fileName,
             'mime_type': media.mimeType,
           },
@@ -276,63 +324,40 @@ class ChatRepository {
 
   // Media Operations
   String _getMimeType(Uint8List bytes, String fileName) {
-    // First try to detect from bytes
-    if (bytes.length >= 2) {
-      // Check for JPEG
-      if (bytes[0] == 0xFF && bytes[1] == 0xD8) {
-        return 'image/jpeg';
-      }
-      // Check for PNG
-      if (bytes.length >= 8 &&
-          bytes[0] == 0x89 &&
-          bytes[1] == 0x50 &&
-          bytes[2] == 0x4E &&
-          bytes[3] == 0x47) {
-        return 'image/png';
-      }
-    }
-    
-    // Then try from file extension
     final ext = path.extension(fileName).toLowerCase();
     switch (ext) {
-      case '.jpg':
-      case '.jpeg':
-        return 'image/jpeg';
-      case '.png':
-        return 'image/png';
-      case '.gif':
-        return 'image/gif';
-      case '.webp':
-        return 'image/webp';
-      case '.heic':
-        return 'image/heic';
+      case '.pdf':
+        return 'application/pdf';
+      case '.doc':
+      case '.docx':
+        return 'application/msword';
+      case '.xls':
+      case '.xlsx':
+        return 'application/vnd.ms-excel';
+      case '.txt':
+        return 'text/plain';
+      default:
+        // Try to detect image mime type
+        final mimeType = lookupMimeType(fileName, headerBytes: bytes);
+        return mimeType ?? 'application/octet-stream';
     }
-    
-    // Finally try mime package
-    return lookupMimeType(fileName) ?? 'image/jpeg'; // Default to JPEG instead of octet-stream
   }
 
-  String _getFileExtension(String mimeType, String originalPath) {
-    // First try to get from original path
-    final originalExt = path.extension(originalPath).toLowerCase();
-    if (originalExt.isNotEmpty) {
-      return originalExt;
-    }
-    
-    // If no extension, derive from MIME type
+  String _getFileExtension(String mimeType, String filePath) {
+    final originalExt = path.extension(filePath);
+    if (originalExt.isNotEmpty) return originalExt;
+
     switch (mimeType) {
-      case 'image/jpeg':
-        return '.jpg';
-      case 'image/png':
-        return '.png';
-      case 'image/gif':
-        return '.gif';
-      case 'image/webp':
-        return '.webp';
-      case 'image/heic':
-        return '.heic';
+      case 'application/pdf':
+        return '.pdf';
+      case 'application/msword':
+        return '.doc';
+      case 'application/vnd.ms-excel':
+        return '.xls';
+      case 'text/plain':
+        return '.txt';
       default:
-        return '.jpg'; // Default to jpg for images
+        return '';
     }
   }
 
@@ -340,6 +365,7 @@ class ChatRepository {
     required String messageId,
     required String filePath,
     required Uint8List bytes,
+    MessageType type = MessageType.file,
   }) async {
     try {
       final fileName = path.basename(filePath);
@@ -349,17 +375,12 @@ class ChatRepository {
       final uniqueFileName = '$messageId-$timestamp$fileExt';
 
       // First verify the message exists and user has access
-      final messages = await _supabase
+      final message = await _supabase
           .from('event_chat_messages')
-          .select('id, chat_room_id, sender_id')
+          .select()
           .eq('id', messageId)
           .eq('sender_id', _supabase.auth.currentUser!.id)
-          .limit(1);
-
-      if (messages.isEmpty) {
-        throw Exception('Message not found or unauthorized');
-      }
-      final message = messages[0];
+          .single();
 
       // Upload the file to storage with explicit content type
       final String storagePath = uniqueFileName;
@@ -384,50 +405,66 @@ class ChatRepository {
           .from('event_chat_media')
           .getPublicUrl(storagePath);
 
-      // Update the message with media information
-      final messageResponses = await _supabase
+      // Map message type to database constraints
+      String dbMessageType;
+      String dbType;
+      switch (type) {
+        case MessageType.file:
+          dbMessageType = 'text';  // Use 'text' for files as per constraint
+          dbType = 'file';
+          break;
+        case MessageType.text:
+          dbMessageType = 'text';
+          dbType = 'text';
+          break;
+        case MessageType.image:
+          dbMessageType = 'image';
+          dbType = 'image';
+          break;
+        case MessageType.video:
+          dbMessageType = 'video';
+          dbType = 'text';  // Use 'text' for video as per constraint
+          break;
+      }
+
+      // First insert media metadata
+      final mediaData = {
+        'message_id': messageId,
+        'url': url,
+        'type': type.toString().split('.').last.toLowerCase(),
+        'thumbnail_url': type == MessageType.image ? url : null,
+        'file_name': fileName,
+        'file_size': bytes.length,
+        'mime_type': mimeType,
+        'owner_id': _supabase.auth.currentUser!.id,
+      };
+
+      final mediaResponse = await _supabase
+          .from('event_chat_media')
+          .insert(mediaData)
+          .select()
+          .single();
+
+      // Then update the message with media information
+      await _supabase
           .from('event_chat_messages')
           .update({
             'media_url': url,
-            'media_type': 'image',  // Since we're handling images
-            'message_type': 'image',
-            'type': 'image',
-            'thumbnail_url': url,  // For images, use same URL
+            'media_type': type.toString().split('.').last.toLowerCase(),
+            'message_type': dbMessageType,
+            'type': dbType,
+            'thumbnail_url': type == MessageType.image ? url : null,
             'file_name': fileName,
             'mime_type': mimeType,
             'updated_at': DateTime.now().toIso8601String(),
           })
           .eq('id', messageId)
-          .eq('sender_id', _supabase.auth.currentUser!.id)
-          .select('*, sender:profiles!event_chat_messages_sender_id_fkey(id, username, full_name, avatar_url)');
+          .eq('sender_id', _supabase.auth.currentUser!.id);
 
-      if (messageResponses.isEmpty) {
-        throw Exception('Failed to update message with media');
-      }
-
-      debugPrint('Successfully uploaded image: $url');
+      debugPrint('Successfully uploaded file: $url');
       debugPrint('MIME Type: $mimeType');
       debugPrint('File Extension: $fileExt');
-
-      // Insert media metadata
-      final mediaResponses = await _supabase
-          .from('event_chat_media')
-          .insert({
-            'message_id': messageId,
-            'url': url,
-            'type': 'image',
-            'thumbnail_url': url, // For images, use the same URL
-            'file_name': '$fileName$fileExt', // Ensure filename has extension
-            'file_size': bytes.length,
-            'mime_type': mimeType,
-            'owner_id': _supabase.auth.currentUser!.id,
-          })
-          .select();
-
-      if (mediaResponses.isEmpty) {
-        throw Exception('Failed to create media record');
-      }
-      final mediaResponse = mediaResponses[0];
+      debugPrint('File Size: ${bytes.length} bytes');
 
       return ChatMedia.fromMap(mediaResponse);
     } catch (e) {

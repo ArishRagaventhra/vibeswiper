@@ -64,6 +64,8 @@ class EventController extends StateNotifier<AsyncValue<List<Event>>> {
     DateTime? startAfter,
     DateTime? endBefore,
   }) async {
+    if (!mounted) return;
+    
     try {
       state = const AsyncValue.loading();
       final events = await _repository.getEvents(
@@ -74,6 +76,9 @@ class EventController extends StateNotifier<AsyncValue<List<Event>>> {
         startAfter: startAfter,
         endBefore: endBefore,
       );
+      
+      if (!mounted) return;
+      
       // Filter out cancelled and deleted events
       final filteredEvents = events.where((event) => 
         event.status != EventStatus.cancelled && 
@@ -82,7 +87,48 @@ class EventController extends StateNotifier<AsyncValue<List<Event>>> {
       
       state = AsyncValue.data(filteredEvents);
     } catch (err, stack) {
+      if (!mounted) return;
       state = AsyncValue.error(err, stack);
+    }
+  }
+
+  Future<Event?> updateEvent(Event event) async {
+    try {
+      // Convert event to map and remove computed fields
+      final eventData = event.toMap();
+      eventData.remove('likes_count');
+      eventData.remove('saves_count');
+      eventData.remove('participants_count');
+      eventData.remove('favorites_count');
+      
+      // Ensure arrays are initialized
+      eventData['media_urls'] = eventData['media_urls'] ?? [];
+      eventData['tags'] = eventData['tags'] ?? [];
+      
+      // Convert enums to strings
+      eventData['status'] = event.status.name;
+      eventData['event_type'] = event.eventType.name;
+      eventData['visibility'] = event.visibility.name;
+      
+      // Remove any null values
+      eventData.removeWhere((key, value) => value == null);
+      
+      final updatedEvent = await _repository.updateEvent(event.id, eventData);
+      if (updatedEvent != null) {
+        // Update the state with the new event
+        state.whenData((events) {
+          final index = events.indexWhere((e) => e.id == event.id);
+          if (index != -1) {
+            final updatedEvents = List<Event>.from(events);
+            updatedEvents[index] = updatedEvent;
+            state = AsyncValue.data(updatedEvents);
+          }
+        });
+      }
+      return updatedEvent;
+    } catch (e) {
+      debugPrint('Error updating event: $e');
+      return null;
     }
   }
 
@@ -322,70 +368,25 @@ class EventController extends StateNotifier<AsyncValue<List<Event>>> {
     }
   }
 
-  Future<void> cancelEvent(String eventId, String reason) async {
+  Future<Event?> cancelEvent(String eventId, String reason) async {
     try {
-      state = const AsyncValue.loading();
+      final event = await _repository.cancelEvent(eventId, reason);
       
-      // Get current event
-      final currentEvent = await _repository.getEventById(eventId);
-      if (currentEvent == null) {
-        throw Exception('Event not found');
-      }
-      
-      // Check if current user is the event creator
-      final currentUserId = SupabaseConfig.client.auth.currentUser?.id;
-      if (currentUserId == null) {
-        throw Exception('User not authenticated');
-      }
-      if (currentEvent.creatorId != currentUserId) {
-        throw Exception('Only the event creator can cancel this event');
-      }
-      
-      // Create event action record
-      final actionId = const Uuid().v4();
-      final action = EventAction(
-        id: actionId,
-        eventId: eventId,
-        userId: SupabaseConfig.client.auth.currentUser!.id,
-        actionType: EventActionType.cancelled,
-        reason: reason,
-        createdAt: DateTime.now(),
-      );
-
-      // Update event status and create action record
-      await SupabaseConfig.client.from('events').update({
-        'status': EventStatus.cancelled.toString().split('.').last,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', eventId);
-
-      await SupabaseConfig.client.from('event_actions').insert(action.toJson());
-
-      // Notify participants
-      final participants = await SupabaseConfig.client
-          .from('event_participants')
-          .select('user_id')
-          .eq('event_id', eventId);
-
-      for (final participant in participants) {
-        await SupabaseConfig.client.from('notifications').insert({
-          'id': const Uuid().v4(),
-          'user_id': participant['user_id'],
-          'type': 'event_cancelled',
-          'title': 'Event Cancelled',
-          'message': 'An event you were participating in has been cancelled.',
-          'data': {
-            'event_id': eventId,
-            'reason': reason,
-          },
-          'created_at': DateTime.now().toIso8601String(),
+      if (event != null) {
+        // Update the state to reflect the cancelled event
+        state.whenData((events) {
+          final index = events.indexWhere((e) => e.id == eventId);
+          if (index != -1) {
+            final updatedEvents = List<Event>.from(events);
+            updatedEvents[index] = event;
+            state = AsyncValue.data(updatedEvents);
+          }
         });
       }
-
-      // Get updated events list
-      final updatedEvents = await _repository.getEvents();
-      state = AsyncValue.data(updatedEvents);
-    } catch (error, stackTrace) {
-      state = AsyncValue.error(error, stackTrace);
+      
+      return event;
+    } catch (e) {
+      debugPrint('Error in controller while cancelling event: $e');
       rethrow;
     }
   }
@@ -408,7 +409,7 @@ class EventController extends StateNotifier<AsyncValue<List<Event>>> {
       if (currentEvent.creatorId != currentUserId) {
         throw Exception('Only the event creator can delete this event');
       }
-
+      
       // Calculate deletion date (1 week from now)
       final deletionDate = DateTime.now().add(const Duration(days: 7));
       

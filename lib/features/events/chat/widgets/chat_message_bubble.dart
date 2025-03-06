@@ -4,6 +4,8 @@ import '../models/chat_media.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../profile/providers/profile_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
 
 class ChatMessageBubble extends ConsumerWidget {
   final ChatMessage message;
@@ -107,12 +109,23 @@ class ChatMessageBubble extends ConsumerWidget {
                         _buildMediaPreview(context),
                         SizedBox(height: size.height * 0.008),
                       ],
-                      Text(
-                        message.content,
+                      Linkify(
+                        onOpen: (link) => _handleLinkTap(context, link.url),
+                        text: message.content,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: isMe
                               ? theme.colorScheme.onPrimary
                               : theme.colorScheme.onSurface,
+                        ),
+                        linkStyle: theme.textTheme.bodyMedium?.copyWith(
+                          color: isMe
+                              ? theme.colorScheme.onPrimary.withOpacity(0.9)
+                              : theme.colorScheme.primary,
+                          decoration: TextDecoration.underline,
+                        ),
+                        options: const LinkifyOptions(
+                          humanize: false,
+                          defaultToHttps: true,
                         ),
                       ),
                       SizedBox(height: size.height * 0.004),
@@ -181,6 +194,63 @@ class ChatMessageBubble extends ConsumerWidget {
       );
     }
 
+    if (message.type == MessageType.file) {
+      return GestureDetector(
+        onTap: () => _handleDocumentTap(context),
+        child: Container(
+          padding: EdgeInsets.all(size.width * 0.03),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: theme.dividerColor.withOpacity(0.1),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _getFileIcon(message.media!.mimeType ?? ''),
+                size: size.width * 0.08,
+                color: theme.colorScheme.primary,
+              ),
+              SizedBox(width: size.width * 0.03),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      message.media!.fileName ?? 'Document',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (message.media!.fileSize != null)
+                      Text(
+                        _formatFileSize(message.media!.fileSize!),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              SizedBox(width: size.width * 0.03),
+              Icon(
+                Icons.download_rounded,
+                size: size.width * 0.05,
+                color: theme.colorScheme.primary.withOpacity(0.7),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Handle image preview
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -261,7 +331,7 @@ class ChatMessageBubble extends ConsumerWidget {
                 );
               },
             ),
-            if (message.media!.type == MediaType.video)
+            if (message.type == MessageType.video)
               Positioned.fill(
                 child: ColoredBox(
                   color: Colors.black26,
@@ -276,5 +346,76 @@ class ChatMessageBubble extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  IconData _getFileIcon(String mimeType) {
+    if (mimeType.startsWith('application/pdf')) {
+      return Icons.picture_as_pdf;
+    } else if (mimeType.startsWith('application/msword') || 
+              mimeType.contains('document')) {
+      return Icons.description;
+    } else if (mimeType.contains('spreadsheet') || 
+              mimeType.contains('excel')) {
+      return Icons.table_chart;
+    } else if (mimeType.startsWith('text/')) {
+      return Icons.text_snippet;
+    }
+    return Icons.insert_drive_file;
+  }
+
+  String _formatFileSize(int bytes) {
+    const suffixes = ['B', 'KB', 'MB', 'GB'];
+    var i = 0;
+    double size = bytes.toDouble();
+
+    while (size >= 1024 && i < suffixes.length - 1) {
+      size /= 1024;
+      i++;
+    }
+
+    return '${size.toStringAsFixed(1)} ${suffixes[i]}';
+  }
+
+  void _handleDocumentTap(BuildContext context) async {
+    if (message.media?.url == null) return;
+
+    try {
+      final url = message.media!.url;
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        throw 'Could not launch $url';
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening document: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleLinkTap(BuildContext context, String url) async {
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch $url';
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening link: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 }

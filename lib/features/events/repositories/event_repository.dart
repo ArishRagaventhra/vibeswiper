@@ -178,6 +178,29 @@ class EventRepository {
     await _supabase.from(_eventsTable).delete().eq('id', eventId);
   }
 
+  // Cancel an event
+  Future<Event?> cancelEvent(String eventId, String reason) async {
+    try {
+      final data = {
+        'status': EventStatus.cancelled.name,
+        'cancellation_reason': reason,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      final response = await _supabase
+          .from(_eventsTable)
+          .update(data)
+          .eq('id', eventId)
+          .select()
+          .single();
+          
+      return Event.fromMap(response);
+    } catch (e) {
+      debugPrint('Error cancelling event: $e');
+      return null;
+    }
+  }
+
   // Participant Management
   Future<EventParticipant> addParticipant(EventParticipant participant) async {
     final response = await _supabase

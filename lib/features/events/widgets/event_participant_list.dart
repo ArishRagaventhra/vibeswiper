@@ -228,6 +228,8 @@ class ParticipantListTile extends ConsumerWidget {
         return 'Accepted';
       case ParticipantStatus.rejected:
         return 'Rejected';
+      case ParticipantStatus.confirmed:
+        return 'Confirmed';
     }
   }
 
@@ -239,6 +241,8 @@ class ParticipantListTile extends ConsumerWidget {
         return Colors.green;
       case ParticipantStatus.rejected:
         return Colors.red;
+      case ParticipantStatus.confirmed:
+        return Colors.blue;
     }
   }
 }

@@ -39,6 +39,7 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _logoFadeAnimation;
+  Size? _screenSize;
 
   @override
   void initState() {
@@ -61,11 +62,25 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
       parent: _controller,
       curve: Curves.easeInOut,
     ));
-    _controller.forward();
-    // Refresh events when screen is loaded
+
+    // Use AutoDisposeFutureProvider to handle state cleanup
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.refresh(eventControllerProvider);
+      if (mounted) {
+        _controller.forward();
+        // Only refresh if data is not already available
+        final currentEvents = ref.read(eventControllerProvider).value;
+        if (currentEvents == null || currentEvents.isEmpty) {
+          ref.refresh(eventControllerProvider);
+        }
+      }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Cache screen size to prevent layout rebuilds
+    _screenSize = MediaQuery.of(context).size;
   }
 
   @override
@@ -101,7 +116,7 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
       backgroundColor: Theme.of(context).colorScheme.surface,
       elevation: 2,
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.9,
+        maxHeight: _screenSize!.height * 0.9,
       ),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),

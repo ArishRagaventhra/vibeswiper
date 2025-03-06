@@ -1,7 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/event_model.dart';
+import '../../payments/providers/payment_provider.dart';
 
 final eventSearchQueryProvider = StateProvider<String>((ref) => '');
+
+// Create a provider to handle payment status check
+final eventPaymentStatusProvider = Provider.family<bool, String>((ref, eventId) {
+  final paymentsAsync = ref.watch(paymentProvider);
+  return paymentsAsync.when(
+    data: (payments) => payments.any((payment) => 
+      payment.eventId == eventId && payment.status == 'success'
+    ),
+    loading: () => false,
+    error: (_, __) => false,
+  );
+});
 
 final filteredEventsProvider = Provider.family<List<Event>, List<Event>>((ref, events) {
   final query = ref.watch(eventSearchQueryProvider).toLowerCase();

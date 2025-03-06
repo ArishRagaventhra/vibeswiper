@@ -13,6 +13,7 @@ _$ChatMediaImpl _$$ChatMediaImplFromJson(Map<String, dynamic> json) =>
       thumbnailUrl: json['thumbnailUrl'] as String?,
       fileName: json['fileName'] as String?,
       mimeType: json['mimeType'] as String?,
+      fileSize: (json['fileSize'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$$ChatMediaImplToJson(_$ChatMediaImpl instance) =>
@@ -22,6 +23,7 @@ Map<String, dynamic> _$$ChatMediaImplToJson(_$ChatMediaImpl instance) =>
       'thumbnailUrl': instance.thumbnailUrl,
       'fileName': instance.fileName,
       'mimeType': instance.mimeType,
+      'fileSize': instance.fileSize,
     };
 
 const _$MediaTypeEnumMap = {

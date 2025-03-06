@@ -50,17 +50,15 @@ class _EventSearchScreenState extends ConsumerState<EventSearchScreen> {
   }
 
   bool _checkUserPaymentStatus(String eventId) {
-    // Fetch the user's payment history and check if there's a successful payment for the eventId
-    final paymentsAsync = ref.read(paymentProvider);
-    bool hasSuccessfulPayment = false;
-    paymentsAsync.when(
-      data: (payments) {
-        hasSuccessfulPayment = payments.any((payment) => payment.eventId == eventId && payment.status == 'success');
-      },
-      loading: () {},
-      error: (_, __) {},
+    // Watch the payment provider instead of reading it
+    final paymentsAsync = ref.watch(paymentProvider);
+    return paymentsAsync.when(
+      data: (payments) => payments.any((payment) => 
+        payment.eventId == eventId && payment.status == 'success'
+      ),
+      loading: () => false,
+      error: (_, __) => false,
     );
-    return hasSuccessfulPayment;
   }
 
   @override

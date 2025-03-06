@@ -9,9 +9,13 @@ class CreateOptionsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final viewPadding = MediaQuery.of(context).viewPadding;
     
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: EdgeInsets.only(
+        top: 16,
+        bottom: 16 + viewPadding.bottom, // Add padding for system navigation bar
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -39,6 +43,7 @@ class CreateOptionsSheet extends StatelessWidget {
             subtitle: 'Plan and organize events',
             onTap: () => context.push(AppRoutes.createEvent),
           ),
+          SizedBox(height: 8), // Add some extra padding at the bottom
         ],
       ),
     );

@@ -12,9 +12,12 @@ import 'package:scompass_07/features/notifications/screens/notifications_screen.
 import 'package:scompass_07/features/events/screens/create_event_screen.dart';
 import 'package:scompass_07/features/events/screens/events_list_screen.dart';
 import 'package:scompass_07/features/events/screens/event_details_screen.dart';
+import 'package:scompass_07/features/events/screens/edit_event_screen.dart';
 import 'package:scompass_07/features/events/chat/screens/event_chat_screen.dart';
 import 'package:scompass_07/features/events/screens/my_events_screen.dart';
 import 'package:scompass_07/features/events/screens/event_participants_screen.dart';
+import 'package:scompass_07/features/events/screens/event_responses_dashboard.dart';
+import 'package:scompass_07/features/events/screens/event_organizer_dashboard.dart';
 import 'package:scompass_07/features/profile/providers/profile_provider.dart';
 import 'package:scompass_07/features/forum/routes/forum_routes.dart';
 import '../features/account/screens/account_screen.dart';
@@ -23,6 +26,25 @@ import '../features/settings/screens/settings_screen.dart';
 import '../features/settings/screens/terms_conditions_screen.dart';
 import '../features/payments/screens/payment_history_screen.dart';
 import '../features/events/screens/event_search_screen.dart';
+
+class NoTransitionPage<T> extends CustomTransitionPage<T> {
+  NoTransitionPage({
+    required Widget child,
+    LocalKey? key,
+    String? name,
+    Object? arguments,
+    String? restorationId,
+  }) : super(
+    child: child,
+    key: key,
+    name: name,
+    arguments: arguments,
+    restorationId: restorationId,
+    transitionsBuilder: (_, __, ___, child) => child,
+    transitionDuration: Duration.zero,
+    reverseTransitionDuration: Duration.zero,
+  );
+}
 
 class AppRoutes {
   static final supabase = SupabaseConfig.client;
@@ -35,6 +57,9 @@ class AppRoutes {
   static const String eventDetails = '/events/:eventId';
   static const String eventChat = '/events/:eventId/chat';
   static const String eventParticipants = '/events/:eventId/participants';
+  static const String eventResponses = '/events/:eventId/responses';
+  static const String eventDashboard = '/events/:eventId/dashboard';
+  static const String editEvent = '/events/:eventId/edit';
   static const String createEvent = '/events/create';
   static const String eventSearch = '/events/search';
   static const String myEvents = '/my-events';
@@ -54,15 +79,21 @@ class AppRoutes {
     routes: [
       GoRoute(
         path: login,
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          child: const LoginScreen(),
+        ),
       ),
       GoRoute(
         path: register,
-        builder: (context, state) => const RegisterScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          child: const RegisterScreen(),
+        ),
       ),
       GoRoute(
         path: forgotPassword,
-        builder: (context, state) => const ForgotPasswordScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          child: const ForgotPasswordScreen(),
+        ),
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -70,78 +101,135 @@ class AppRoutes {
         routes: [
           GoRoute(
             path: eventsList,
-            builder: (context, state) => const EventsListScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: const EventsListScreen(),
+            ),
           ),
           GoRoute(
             path: eventSearch,
-            builder: (context, state) => const EventSearchScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: const EventSearchScreen(),
+            ),
           ),
           GoRoute(
             path: myEvents,
-            builder: (context, state) => const MyEventsScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: const MyEventsScreen(),
+            ),
           ),
           GoRoute(
             path: createEvent,
-            builder: (context, state) => const CreateEventScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: const CreateEventScreen(),
+            ),
           ),
           GoRoute(
             path: eventDetails,
             name: 'event-details',  
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final eventId = state.pathParameters['eventId']!;
-              return EventDetailsScreen(eventId: eventId);
+              return NoTransitionPage(
+                child: EventDetailsScreen(eventId: eventId),
+              );
             },
           ),
           GoRoute(
             path: eventChat,
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final eventId = state.pathParameters['eventId']!;
-              return EventChatScreen(eventId: eventId);
+              return NoTransitionPage(
+                child: EventChatScreen(eventId: eventId),
+              );
             },
           ),
           GoRoute(
             path: eventParticipants,
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final eventId = state.pathParameters['eventId']!;
-              return EventParticipantsScreen(eventId: eventId);
+              return NoTransitionPage(
+                child: EventParticipantsScreen(eventId: eventId),
+              );
+            },
+          ),
+          GoRoute(
+            path: eventResponses,
+            pageBuilder: (context, state) {
+              final eventId = state.pathParameters['eventId']!;
+              return NoTransitionPage(
+                child: EventResponsesDashboard(eventId: eventId),
+              );
+            },
+          ),
+          GoRoute(
+            path: eventDashboard,
+            pageBuilder: (context, state) {
+              final eventId = state.pathParameters['eventId']!;
+              return NoTransitionPage(
+                child: EventOrganizerDashboard(eventId: eventId),
+              );
+            },
+          ),
+          GoRoute(
+            path: editEvent,
+            pageBuilder: (context, state) {
+              final eventId = state.pathParameters['eventId']!;
+              return NoTransitionPage(
+                child: EditEventScreen(eventId: eventId),
+              );
             },
           ),
           GoRoute(
             path: notifications,
-            builder: (context, state) => const NotificationsScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: const NotificationsScreen(),
+            ),
           ),
           GoRoute(
             path: editProfile,
-            builder: (context, state) => const EditProfileScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: const EditProfileScreen(),
+            ),
           ),
           GoRoute(
             path: profile,
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final userId = state.pathParameters['userId']!;
-              return ProfileScreen(userId: userId);
+              return NoTransitionPage(
+                child: ProfileScreen(userId: userId),
+              );
             },
           ),
           ...ForumRoutes.routes,
           GoRoute(
             path: account,
-            builder: (context, state) => const AccountScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: const AccountScreen(),
+            ),
           ),
           GoRoute(
             path: settings,
-            builder: (context, state) => const SettingsScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: const SettingsScreen(),
+            ),
           ),
           GoRoute(
             path: privacyPolicy,
-            builder: (context, state) => const PrivacyPolicyScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: const PrivacyPolicyScreen(),
+            ),
           ),
           GoRoute(
             path: termsConditions,
-            builder: (context, state) => const TermsConditionsScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: const TermsConditionsScreen(),
+            ),
           ),
           // Removed notification settings route
           GoRoute(
             path: paymentHistory,
-            builder: (context, state) => const PaymentHistoryScreen(),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: const PaymentHistoryScreen(),
+            ),
           ),
         ],
       ),

@@ -34,6 +34,10 @@ class ChatMessage with _$ChatMessage {
   static ChatMessage fromMap(Map<String, dynamic> map) {
     final mediaUrl = map['media_url'] as String?;
     final mediaType = map['media_type'] as String?;
+    final fileName = map['file_name'] as String?;
+    final mimeType = map['mime_type'] as String?;
+    final fileSize = map['file_size'] as int?;
+    final thumbnailUrl = map['thumbnail_url'] as String?;
     
     ChatMedia? media;
     if (mediaUrl != null && mediaType != null) {
@@ -43,6 +47,10 @@ class ChatMessage with _$ChatMessage {
           (e) => e.toString().split('.').last == mediaType,
           orElse: () => MediaType.file,
         ),
+        fileName: fileName,
+        mimeType: mimeType,
+        fileSize: fileSize,
+        thumbnailUrl: thumbnailUrl,
       );
     }
 
@@ -51,6 +59,8 @@ class ChatMessage with _$ChatMessage {
       senderProfile = Profile.fromJson(map['sender_profile'] as Map<String, dynamic>);
     }
     
+    final messageType = map['type'] as String? ?? map['message_type'] as String;
+    
     return ChatMessage(
       id: map['id'] as String,
       roomId: map['chat_room_id'] as String,
@@ -58,7 +68,7 @@ class ChatMessage with _$ChatMessage {
       senderProfile: senderProfile,
       content: map['content'] as String,
       type: MessageType.values.firstWhere(
-        (e) => e.toString().split('.').last == map['message_type'],
+        (e) => e.toString().split('.').last == messageType,
         orElse: () => MessageType.text,
       ),
       createdAt: DateTime.parse(map['created_at'] as String),

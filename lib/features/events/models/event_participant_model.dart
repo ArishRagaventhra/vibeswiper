@@ -12,7 +12,7 @@ enum ParticipantRole {
 enum ParticipantStatus {
   pending,
   accepted,
-  rejected;
+  rejected, confirmed;
 
   String get name => toString().split('.').last;
 }

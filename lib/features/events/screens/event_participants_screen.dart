@@ -380,6 +380,7 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
   Widget _buildParticipantCard(EventParticipant participant) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final canManage = _canManageParticipant(participant);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -392,88 +393,112 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
               : Colors.black.withOpacity(0.05),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: participant.avatarUrl == null 
-                  ? (participant.username?.contains('ragav') ?? false 
-                      ? Colors.orange 
-                      : theme.colorScheme.primary.withOpacity(0.1))
-                  : null,
-              backgroundImage: participant.avatarUrl != null
-                  ? NetworkImage(participant.avatarUrl!)
-                  : null,
-              child: participant.avatarUrl == null
-                  ? Text(
-                      participant.fullName?.substring(0, 1).toUpperCase() ??
-                          participant.username?.substring(0, 1).toUpperCase() ??
-                          '?',
-                      style: TextStyle(
-                        color: participant.username?.contains('ragav') ?? false 
-                            ? Colors.white 
-                            : theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    participant.fullName ?? participant.username ?? 'Unknown',
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 16,
+      child: InkWell(
+        onTap: canManage ? () => _showParticipantOptions(participant) : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: participant.avatarUrl == null 
+                    ? (participant.username?.contains('ragav') ?? false 
+                        ? Colors.orange 
+                        : theme.colorScheme.primary.withOpacity(0.1))
+                    : null,
+                backgroundImage: participant.avatarUrl != null
+                    ? NetworkImage(participant.avatarUrl!)
+                    : null,
+                child: participant.avatarUrl == null
+                    ? Text(
+                        participant.fullName?.substring(0, 1).toUpperCase() ??
+                            participant.username?.substring(0, 1).toUpperCase() ??
+                            '?',
+                        style: TextStyle(
+                          color: participant.username?.contains('ragav') ?? false 
+                              ? Colors.white 
+                              : theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            participant.fullName ?? participant.username ?? 'Unknown',
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (canManage) ...[
+                          Icon(
+                            Icons.chevron_right,
+                            color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+                            size: 20,
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '@${participant.username ?? ''}',
-                    style: TextStyle(
-                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
-                      fontSize: 14,
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '@${participant.username ?? ''}',
+                            style: TextStyle(
+                              color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _getRoleIcon(participant.role),
+                                size: 14,
+                                color: isDark ? Colors.white : Colors.black,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                participant.role.name,
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white : Colors.black,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                participant.role.name.toUpperCase(),
-                style: TextStyle(
-                  color: isDark ? Colors.black : Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  ],
                 ),
-              ),
-            ),
-            if (_canManageParticipant(participant)) ...[
-              const SizedBox(width: 8),
-              IconButton(
-                icon: Icon(
-                  Icons.more_vert,
-                  color: isDark ? Colors.white : Colors.black54,
-                  size: 20,
-                ),
-                onPressed: () => _showParticipantOptions(participant),
-                tooltip: 'Manage participant',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
               ),
             ],
-          ],
+          ),
         ),
       ),
     );

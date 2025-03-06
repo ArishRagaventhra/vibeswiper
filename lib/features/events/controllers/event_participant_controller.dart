@@ -35,13 +35,17 @@ class EventParticipantController
 
   // Load participants for an event
   Future<List<EventParticipant>> loadParticipants(String eventId) async {
-    state = const AsyncValue.loading();
     try {
       final participants = await _repository.getEventParticipants(eventId);
-      state = AsyncValue.data(participants);
+      // Use Future.microtask to update state
+      Future.microtask(() {
+        state = AsyncValue.data(participants);
+      });
       return participants;
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      Future.microtask(() {
+        state = AsyncValue.error(e, st);
+      });
       rethrow;
     }
   }

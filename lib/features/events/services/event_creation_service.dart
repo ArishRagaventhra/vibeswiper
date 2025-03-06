@@ -4,6 +4,7 @@ import '../controllers/event_controller.dart';
 import '../models/event_model.dart';
 import '../repositories/event_participant_repository.dart';
 import '../repositories/event_organizer_contact_repository.dart';
+import '../repositories/event_requirements_repository.dart';
 import '../providers/event_organizer_contact_provider.dart';
 import '../../payments/providers/payment_provider.dart';
 import '../../payments/services/event_payment_service.dart';
@@ -19,7 +20,9 @@ class EventCreationService {
     required String title,
     required String creatorId,
     String? description,
-    String? location,
+    required String location,
+    required String city,
+    required String country,
     required DateTime startTime,
     required DateTime endTime,
     required EventType eventType,
@@ -37,16 +40,22 @@ class EventCreationService {
     required String organizerName,
     required String organizerEmail,
     required String organizerPhone,
+    Map<String, dynamic>? requirementsData,
   }) async {
     Event? draftEvent;
     
     try {
+      // Validate location data
+      if (location.isEmpty || city.isEmpty || country.isEmpty) {
+        throw Exception('Location details are required');
+      }
+
       // 1. Create draft event
       draftEvent = await _ref.read(eventControllerProvider.notifier).createEventWithMedia(
             title: title,
             creatorId: creatorId,
             description: description,
-            location: location,
+            location: '$location, $city, $country',
             startTime: startTime,
             endTime: endTime,
             eventType: eventType,
@@ -55,7 +64,7 @@ class EventCreationService {
             category: category,
             tags: tags,
             recurringPattern: recurringPattern,
-            reminderBefore: reminderBefore,  // Pass Duration directly
+            reminderBefore: reminderBefore,
             registrationDeadline: registrationDeadline,
             ticketPrice: ticketPrice,
             currency: currency,
@@ -78,6 +87,33 @@ class EventCreationService {
           final participantRepo = _ref.read(eventParticipantRepositoryProvider);
           await participantRepo.joinEvent(draftEvent.id, creatorId);
           
+          // 3. Store event requirements if provided
+          if (requirementsData != null) {
+            final requirementsRepo = _ref.read(eventRequirementsRepositoryProvider);
+            await requirementsRepo.createEventRequirements(draftEvent.id, requirementsData);
+          }
+
+          // 3. Handle payment if needed
+          if (eventType == EventType.paid) {
+            try {
+              final paymentService = _ref.read(eventPaymentServiceProvider);
+              await paymentService.initiateEventCreationPayment(
+                eventId: draftEvent.id,
+                eventName: draftEvent.title,
+                userEmail: organizerEmail,
+                userContact: organizerPhone,
+              );
+            } catch (e) {
+              // If payment fails, delete the event and rethrow
+              await _ref.read(eventControllerProvider.notifier).deleteEvent(
+                draftEvent.id,
+                creatorId,
+              );
+              throw Exception('Payment failed: $e');
+            }
+          }
+
+          return draftEvent;
         } catch (e) {
           // If contact creation fails, delete the event and rethrow
           if (draftEvent != null) {
@@ -88,28 +124,6 @@ class EventCreationService {
           }
           throw Exception('Failed to save contact details: $e');
         }
-
-        // 3. Handle payment if needed
-        if (eventType == EventType.paid) {
-          try {
-            final paymentService = _ref.read(eventPaymentServiceProvider);
-            await paymentService.initiateEventCreationPayment(
-              eventId: draftEvent.id,
-              eventName: draftEvent.title,
-              userEmail: organizerEmail,
-              userContact: organizerPhone,
-            );
-          } catch (e) {
-            // If payment fails, delete the event and rethrow
-            await _ref.read(eventControllerProvider.notifier).deleteEvent(
-              draftEvent.id,
-              creatorId,
-            );
-            throw Exception('Payment failed: $e');
-          }
-        }
-
-        return draftEvent;
       }
       return null;
     } catch (e) {

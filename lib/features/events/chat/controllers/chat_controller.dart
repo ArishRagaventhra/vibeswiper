@@ -149,18 +149,17 @@ class ChatController extends StateNotifier<AsyncValue<void>> {
     required String messageId,
     required String filePath,
     required Uint8List bytes,
+    MessageType type = MessageType.file,
   }) async {
-    state = const AsyncValue.loading();
     try {
-      final media = await _repository.uploadMedia(
+      return await _repository.uploadMedia(
         messageId: messageId,
         filePath: filePath,
         bytes: bytes,
+        type: type,
       );
-      state = const AsyncValue.data(null);
-      return media;
-    } catch (error, stackTrace) {
-      state = AsyncValue.error(error, stackTrace);
+    } catch (e) {
+      debugPrint('Error uploading media: $e');
       rethrow;
     }
   }

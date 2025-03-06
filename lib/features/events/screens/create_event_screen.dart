@@ -12,6 +12,7 @@ import 'package:scompass_07/shared/widgets/app_bar.dart';
 import 'package:scompass_07/shared/widgets/loading_widget.dart';
 import 'package:scompass_07/shared/widgets/dashed_border.dart';
 import 'package:scompass_07/shared/widgets/step_progress_indicator.dart';
+import '../models/event_requirements_models.dart';
 import '../services/event_creation_service.dart';
 import '../controllers/event_participant_controller.dart';
 import '../utils/media_upload_test.dart';
@@ -22,6 +23,8 @@ import 'package:scompass_07/features/events/widgets/payment_process_dialog.dart'
 import '../widgets/event_contact_form.dart';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
 import '../../../shared/widgets/gradient_progress_indicator.dart';
+import '../widgets/event_requirements_form.dart';
+import 'package:scompass_07/features/events/widgets/event_location_form.dart';
 
 class CreateEventScreen extends ConsumerStatefulWidget {
   const CreateEventScreen({super.key});
@@ -34,15 +37,18 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _locationController = TextEditingController();
   final _priceController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _countryController = TextEditingController();
   final _accessCodeController = TextEditingController();
   final _maxParticipantsController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _countryController = TextEditingController();
   final List<XFile> _selectedImages = [];
   final List<ImageProvider> _imageProviders = [];
   final List<String> _selectedTags = [];
+  final List<EventCustomQuestion> _customQuestions = [];
+  bool _hasRefundPolicy = false;
+  bool _requiresAcceptance = false;
   DateTime _startTime = DateTime.now();
   DateTime _endTime = DateTime.now().add(const Duration(hours: 2));
   String _selectedCategory = 'academic';
@@ -51,11 +57,17 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   String _currency = 'INR';
   bool _isLoading = false;
   String _loadingText = '';
-  final PageController _pageController = PageController();
+  final PageController _pageController = PageController(initialPage: 0);
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
+    _pageController.addListener(() {
+      setState(() {
+        _currentPage = _pageController.page?.round() ?? 0;
+      });
+    });
     _titleController.addListener(_validateCurrentStep);
     _descriptionController.addListener(_validateCurrentStep);
     _priceController.addListener(_validateCurrentStep);
@@ -110,6 +122,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         return 'Media';
       case EventCreationStep.dateTime:
         return 'Date & Time';
+      case EventCreationStep.requirements:
+        return 'Requirements';
       case EventCreationStep.locationDetails:
         return 'Location';
     }
@@ -951,20 +965,19 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         _createEvent();
       } else {
         ref.read(eventWizardProvider.notifier).nextStep();
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+        // Use Future.delayed to ensure the state is updated before animating
+        Future.delayed(Duration.zero, () {
+          if (_pageController.hasClients) {
+            _pageController.animateToPage(
+              EventCreationStep.values.indexOf(ref.read(eventWizardProvider).currentStep),
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
       }
     } else {
       // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_getErrorMessageForCurrentStep()),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
     }
   }
 
@@ -979,6 +992,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         return 'Please upload at least one image';
       case EventCreationStep.dateTime:
         return 'Please select valid event dates';
+      case EventCreationStep.requirements:
+        return 'Please complete the event requirements section';
       case EventCreationStep.locationDetails:
         return 'Please provide complete location details';
     }
@@ -1007,6 +1022,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         ref.read(eventWizardProvider.notifier).updateFormData({
           'start_time': _startTime.toIso8601String(),
           'end_time': _endTime.toIso8601String(),
+        });
+        break;
+      case EventCreationStep.requirements:
+        // The requirements data is managed by the EventRequirementsForm widget
+        // Only update the flags here, not the text content
+        ref.read(eventWizardProvider.notifier).updateFormData({
+          'has_refund_policy': _hasRefundPolicy,
+          'requires_acceptance': _requiresAcceptance,
         });
         break;
       case EventCreationStep.locationDetails:
@@ -1038,12 +1061,21 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       case EventCreationStep.dateTime:
         isValid = _validateDateTime();
         break;
+      case EventCreationStep.requirements:
+        isValid = _validateRequirements();
+        break;
       case EventCreationStep.locationDetails:
         isValid = _validateLocation();
         break;
     }
 
     ref.read(eventWizardProvider.notifier).setStepValidation(currentStep, isValid);
+  }
+
+  bool _validateRequirements() {
+    // Get the validation state directly from the wizard controller
+    // The EventRequirementsForm widget handles its own validation and updates the state
+    return ref.read(eventWizardProvider).isCurrentStepValid;
   }
 
   bool _validateBasicInfo() {
@@ -1094,13 +1126,23 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   }
 
   void _previousStep() {
+    // Save current form data before going back
+    _saveFormData();
+    
     final wizardState = ref.read(eventWizardProvider);
     if (wizardState.canGoToPreviousStep) {
       ref.read(eventWizardProvider.notifier).previousStep();
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      
+      // Use Future.delayed to ensure the state is updated before animating
+      Future.delayed(Duration.zero, () {
+        if (_pageController.hasClients) {
+          _pageController.animateToPage(
+            EventCreationStep.values.indexOf(ref.read(eventWizardProvider).currentStep),
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
     }
   }
 
@@ -1112,13 +1154,21 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
 
     try {
       final wizardState = ref.read(eventWizardProvider);
-      final contactInfo = wizardState.formData;
+      final formData = wizardState.formData;
+      final locationData = wizardState.locationData;
+
+      // Validate location data
+      if (locationData == null || !locationData.isComplete) {
+        throw Exception('Location details are required');
+      }
 
       final event = await ref.read(eventCreationServiceProvider).createEvent(
         title: _titleController.text,
         creatorId: SupabaseConfig.client.auth.currentUser!.id,
         description: _descriptionController.text,
-        location: _locationController.text,
+        location: locationData.venue!,
+        city: locationData.city!,
+        country: locationData.country!,
         startTime: _startTime,
         endTime: _endTime,
         eventType: _eventType,
@@ -1130,9 +1180,16 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         currency: _currency,
         mediaFiles: _selectedImages,
         accessCode: _accessCodeController.text,
-        organizerName: contactInfo['organizer_name'] ?? '',
-        organizerEmail: contactInfo['organizer_email'] ?? '',
-        organizerPhone: contactInfo['organizer_phone'] ?? '',
+        organizerName: formData['organizer_name'] ?? '',
+        organizerEmail: formData['organizer_email'] ?? '',
+        organizerPhone: formData['organizer_phone'] ?? '',
+        requirementsData: {
+          'refund_policy': formData['refund_policy'],
+          'acceptance_text': formData['acceptance_text'],
+          'custom_questions': formData['custom_questions'],
+          'has_refund_policy': formData['has_refund_policy'],
+          'requires_acceptance': formData['requires_acceptance'],
+        },
       );
 
       if (event != null) {
@@ -1484,8 +1541,10 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         return _buildMediaStep();
       case EventCreationStep.dateTime:
         return _buildDateTimeStep();
+      case EventCreationStep.requirements:
+        return const EventRequirementsForm();
       case EventCreationStep.locationDetails:
-        return _buildLocationDetailsStep();
+        return const EventLocationForm();
     }
   }
 
@@ -1524,25 +1583,57 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     SafeArea(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-                        child: Row(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (wizardState.canGoToPreviousStep)
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: _previousStep,
-                                  child: const Text('Back'),
+                            if (!wizardState.isCurrentStepValid && wizardState.currentStep == EventCreationStep.requirements)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 16.0),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.errorContainer.withOpacity(0.7),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Please complete all required fields',
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onErrorContainer,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
                                 ),
                               ),
-                            if (wizardState.canGoToPreviousStep)
-                              const SizedBox(width: 16),
-                            Expanded(
-                              flex: 2,
-                              child: FilledButton(
-                                onPressed: wizardState.isLastStep ? _createEvent : _nextStep,
-                                child: Text(
-                                  wizardState.isLastStep ? 'Create Event' : 'Continue',
+                            Row(
+                              children: [
+                                if (wizardState.canGoToPreviousStep)
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: _previousStep,
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                      ),
+                                      child: const Text('Back'),
+                                    ),
+                                  ),
+                                if (wizardState.canGoToPreviousStep)
+                                  const SizedBox(width: 16),
+                                Expanded(
+                                  flex: 2,
+                                  child: FilledButton(
+                                    onPressed: wizardState.isLastStep ? _createEvent : _nextStep,
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                    ),
+                                    child: Text(
+                                      wizardState.isLastStep ? 'Create Event' : 'Continue',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ],
                         ),

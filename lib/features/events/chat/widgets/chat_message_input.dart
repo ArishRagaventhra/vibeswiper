@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../controllers/chat_controller.dart';
 import '../models/chat_message.dart';
@@ -30,6 +31,7 @@ class _ChatMessageInputState extends ConsumerState<ChatMessageInput> {
   final _uuid = const Uuid();
   bool _isLoading = false;
   bool _hasText = false;
+  bool _isAttaching = false;
 
   @override
   void initState() {
@@ -140,6 +142,117 @@ class _ChatMessageInputState extends ConsumerState<ChatMessageInput> {
     }
   }
 
+  Future<void> _handleDocumentSelection() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'],
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      if (file.bytes == null) return;
+
+      setState(() => _isLoading = true);
+      String? messageId;
+
+      try {
+        // First create a message with loading state
+        final message = await ref.read(chatMessagesProvider(widget.roomId).notifier).sendMessage(
+          content: 'Uploading document...',
+          type: MessageType.file,
+        );
+        messageId = message.id;
+
+        // Then upload media
+        final media = await ref.read(chatControllerProvider.notifier).uploadMedia(
+          messageId: message.id,
+          filePath: file.name,
+          bytes: file.bytes!,
+          type: MessageType.file,
+        );
+
+        // Update the message with the uploaded media
+        await ref.read(chatMessagesProvider(widget.roomId).notifier).updateMessage(
+          message.id,
+          content: 'Sent a document: ${file.name}',
+          media: media,
+        );
+
+        widget.onMessageSent();
+        HapticFeedback.mediumImpact();
+      } catch (e) {
+        debugPrint('Error uploading document: $e');
+        
+        if (messageId != null) {
+          try {
+            await ref.read(chatMessagesProvider(widget.roomId).notifier).updateMessage(
+              messageId,
+              content: 'Failed to upload document',
+            );
+          } catch (updateError) {
+            debugPrint('Error updating message after failed upload: $updateError');
+          }
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to upload document. Please try again.'),
+              behavior: SnackBarBehavior.floating,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => _handleDocumentSelection(),
+              ),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking document: $e')),
+        );
+      }
+    }
+  }
+
+  void _showAttachmentOptions() {
+    setState(() => _isAttaching = true);
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.image),
+              title: const Text('Image'),
+              onTap: () {
+                Navigator.pop(context);
+                _handleImageSelection();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.insert_drive_file),
+              title: const Text('Document'),
+              onTap: () {
+                Navigator.pop(context);
+                _handleDocumentSelection();
+              },
+            ),
+          ],
+        ),
+      ),
+    ).then((_) => setState(() => _isAttaching = false));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -179,7 +292,7 @@ class _ChatMessageInputState extends ConsumerState<ChatMessageInput> {
                 ),
                 onPressed: _isLoading ? null : () {
                   HapticFeedback.selectionClick();
-                  _handleImageSelection();
+                  _showAttachmentOptions();
                 },
               ),
             ),

@@ -25,6 +25,7 @@ mixin _$ChatMedia {
   String? get thumbnailUrl => throw _privateConstructorUsedError;
   String? get fileName => throw _privateConstructorUsedError;
   String? get mimeType => throw _privateConstructorUsedError;
+  int? get fileSize => throw _privateConstructorUsedError;
 
   /// Serializes this ChatMedia to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -46,7 +47,8 @@ abstract class $ChatMediaCopyWith<$Res> {
       MediaType type,
       String? thumbnailUrl,
       String? fileName,
-      String? mimeType});
+      String? mimeType,
+      int? fileSize});
 }
 
 /// @nodoc
@@ -69,6 +71,7 @@ class _$ChatMediaCopyWithImpl<$Res, $Val extends ChatMedia>
     Object? thumbnailUrl = freezed,
     Object? fileName = freezed,
     Object? mimeType = freezed,
+    Object? fileSize = freezed,
   }) {
     return _then(_value.copyWith(
       url: null == url
@@ -91,6 +94,10 @@ class _$ChatMediaCopyWithImpl<$Res, $Val extends ChatMedia>
           ? _value.mimeType
           : mimeType // ignore: cast_nullable_to_non_nullable
               as String?,
+      fileSize: freezed == fileSize
+          ? _value.fileSize
+          : fileSize // ignore: cast_nullable_to_non_nullable
+              as int?,
     ) as $Val);
   }
 }
@@ -108,7 +115,8 @@ abstract class _$$ChatMediaImplCopyWith<$Res>
       MediaType type,
       String? thumbnailUrl,
       String? fileName,
-      String? mimeType});
+      String? mimeType,
+      int? fileSize});
 }
 
 /// @nodoc
@@ -129,6 +137,7 @@ class __$$ChatMediaImplCopyWithImpl<$Res>
     Object? thumbnailUrl = freezed,
     Object? fileName = freezed,
     Object? mimeType = freezed,
+    Object? fileSize = freezed,
   }) {
     return _then(_$ChatMediaImpl(
       url: null == url
@@ -151,6 +160,10 @@ class __$$ChatMediaImplCopyWithImpl<$Res>
           ? _value.mimeType
           : mimeType // ignore: cast_nullable_to_non_nullable
               as String?,
+      fileSize: freezed == fileSize
+          ? _value.fileSize
+          : fileSize // ignore: cast_nullable_to_non_nullable
+              as int?,
     ));
   }
 }
@@ -163,7 +176,8 @@ class _$ChatMediaImpl extends _ChatMedia {
       required this.type,
       this.thumbnailUrl,
       this.fileName,
-      this.mimeType})
+      this.mimeType,
+      this.fileSize})
       : super._();
 
   factory _$ChatMediaImpl.fromJson(Map<String, dynamic> json) =>
@@ -179,10 +193,12 @@ class _$ChatMediaImpl extends _ChatMedia {
   final String? fileName;
   @override
   final String? mimeType;
+  @override
+  final int? fileSize;
 
   @override
   String toString() {
-    return 'ChatMedia(url: $url, type: $type, thumbnailUrl: $thumbnailUrl, fileName: $fileName, mimeType: $mimeType)';
+    return 'ChatMedia(url: $url, type: $type, thumbnailUrl: $thumbnailUrl, fileName: $fileName, mimeType: $mimeType, fileSize: $fileSize)';
   }
 
   @override
@@ -197,13 +213,15 @@ class _$ChatMediaImpl extends _ChatMedia {
             (identical(other.fileName, fileName) ||
                 other.fileName == fileName) &&
             (identical(other.mimeType, mimeType) ||
-                other.mimeType == mimeType));
+                other.mimeType == mimeType) &&
+            (identical(other.fileSize, fileSize) ||
+                other.fileSize == fileSize));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, url, type, thumbnailUrl, fileName, mimeType);
+  int get hashCode => Object.hash(
+      runtimeType, url, type, thumbnailUrl, fileName, mimeType, fileSize);
 
   /// Create a copy of ChatMedia
   /// with the given fields replaced by the non-null parameter values.
@@ -227,7 +245,8 @@ abstract class _ChatMedia extends ChatMedia {
       required final MediaType type,
       final String? thumbnailUrl,
       final String? fileName,
-      final String? mimeType}) = _$ChatMediaImpl;
+      final String? mimeType,
+      final int? fileSize}) = _$ChatMediaImpl;
   const _ChatMedia._() : super._();
 
   factory _ChatMedia.fromJson(Map<String, dynamic> json) =
@@ -243,6 +262,8 @@ abstract class _ChatMedia extends ChatMedia {
   String? get fileName;
   @override
   String? get mimeType;
+  @override
+  int? get fileSize;
 
   /// Create a copy of ChatMedia
   /// with the given fields replaced by the non-null parameter values.
