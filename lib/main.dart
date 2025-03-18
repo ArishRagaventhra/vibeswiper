@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:scompass_07/config/supabase_config.dart';
 import 'package:scompass_07/config/theme.dart';
 import 'package:scompass_07/config/routes.dart';
@@ -12,6 +14,11 @@ import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
 Future<void> main() async {
   // Ensure Flutter is initialized and platform channels are ready
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Configure URL strategy for web
+  if (kIsWeb) {
+    setUrlStrategy(PathUrlStrategy());
+  }
   
   // Enable edge-to-edge display and set system UI mode
   await SystemChrome.setEnabledSystemUIMode(

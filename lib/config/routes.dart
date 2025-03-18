@@ -75,7 +75,26 @@ class AppRoutes {
 
   static GoRouter router(WidgetRef ref) => GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: login,  
+    initialLocation: login,
+    debugLogDiagnostics: true,
+    routerNeglect: true,  // Prevents URL changes during internal navigations
+    redirect: (context, state) async {
+      // Handle authentication redirects
+      final isAuth = supabase.auth.currentUser != null;
+      final isAuthRoute = state.matchedLocation == login || 
+                         state.matchedLocation == register ||
+                         state.matchedLocation == forgotPassword;
+
+      if (!isAuth && !isAuthRoute) {
+        return login;
+      } else if (isAuth && isAuthRoute) {
+        return eventsList;
+      }
+      return null;
+    },
+    errorBuilder: (context, state) => ErrorScreen(
+      error: state.error.toString(),
+    ),
     routes: [
       GoRoute(
         path: login,
@@ -234,32 +253,19 @@ class AppRoutes {
         ],
       ),
     ],
-    redirect: (context, state) {
-      final isLoggedIn = supabase.auth.currentUser != null;
-      final isGoingToAuth = state.matchedLocation == login ||
-          state.matchedLocation == register ||
-          state.matchedLocation == forgotPassword;
-
-      if (!isLoggedIn && !isGoingToAuth) {
-        return login;
-      }
-      if (isLoggedIn && isGoingToAuth) {
-        return eventsList;  
-      }
-      return null;
-    },
-    errorBuilder: (context, state) => const ErrorScreen(),
   );
 }
 
 class ErrorScreen extends StatelessWidget {
-  const ErrorScreen({super.key});
+  final String error;
+
+  const ErrorScreen({super.key, required this.error});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: Center(
-        child: Text('Error: Page not found!'),
+        child: Text('Error: $error'),
       ),
     );
   }

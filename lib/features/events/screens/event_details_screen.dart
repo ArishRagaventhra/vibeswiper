@@ -307,7 +307,7 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                                   borderRadius: BorderRadius.circular(12),
                                                 ),
                                                 child: Text(
-                                                  '${event.currency ?? 'USD'} ${event.vibePrice!.toStringAsFixed(2)}',
+                                                  '${event.currency ?? 'USD'} ${(event.vibePrice ?? 0).toStringAsFixed(2)}',
                                                   style: theme.textTheme.bodyMedium?.copyWith(
                                                     color: Colors.white,
                                                     fontWeight: FontWeight.bold,
@@ -327,9 +327,11 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            '${event.currency ?? 'USD'} ${event.ticketPrice!.toStringAsFixed(2)}',
+                                            (event.ticketPrice == null || event.ticketPrice == 0)
+                                                ? 'Free'
+                                                : '${event.currency ?? 'USD'} ${(event.ticketPrice ?? 0).toStringAsFixed(2)}',
                                             style: theme.textTheme.bodyMedium?.copyWith(
-                                              color: Colors.green,
+                                              color: (event.ticketPrice == null || event.ticketPrice == 0) ? Colors.blue : Colors.green,
                                               fontWeight: FontWeight.bold,
                                               decoration: event.vibePrice != null
                                                   ? TextDecoration.lineThrough
@@ -838,7 +840,10 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to cancel event: ${e.toString()}')),
+          SnackBar(
+            content: Text('Failed to cancel event: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -859,7 +864,10 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete event: ${e.toString()}')),
+          SnackBar(
+            content: Text('Failed to delete event: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
