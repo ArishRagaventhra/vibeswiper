@@ -874,7 +874,7 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
   }
 
   Future<void> _shareEvent(Event event) async {
-    final String eventUrl = 'https://vibeswiper.scompasshub.com/events/${event.id}'; // Use the correct domain
+    final String eventUrl = 'https://vibeswiper.scompasshub.com/events/${event.id}';
     final String eventDetails = '''
 ${event.title}
 
@@ -883,9 +883,9 @@ ${event.title}
 
 ${event.description ?? ''}
 
-🔗 Check out the event: $eventUrl
+🔗 Join the event: $eventUrl
 ''';
-    
+  
     await Share.share(eventDetails, subject: 'Check out this event: ${event.title}');
   }
 
