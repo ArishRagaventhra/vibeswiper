@@ -338,7 +338,7 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                         }
                       }
                     },
-                    onTap: (event) => context.push('/events/${event.id}'),
+                    onTap: (event) => context.goNamed('event-details', pathParameters: {'eventId': event.id}),
                     onStackEmpty: () => ref.refresh(eventControllerProvider),
                   ),
                 );

@@ -318,10 +318,7 @@ Widget _buildEventsList(BuildContext context, List<Event> events, String type) {
                 onTap: () {
                   // Delay the navigation to avoid state modification during build
                   Future(() {
-                    context.pushNamed(
-                      'event-details',
-                      pathParameters: {'eventId': event.id},
-                    );
+                    context.go('/events/${event.id}');
                   });
                 },
                 child: Container(

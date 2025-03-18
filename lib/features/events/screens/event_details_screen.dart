@@ -149,7 +149,7 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                           color: foregroundColor,
                           size: 20,
                         ),
-                        onPressed: () => context.pop(),
+                        onPressed: () => context.go('/events'),
                       ),
                       actions: [
                         if (isCreator)

@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../models/event_model.dart';
 
 class EventListItem extends StatelessWidget {
   final Event event;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const EventListItem({
     Key? key,
     required this.event,
-    required this.onTap,
+    this.onTap,
   }) : super(key: key);
 
   String _formatDateTime(DateTime dateTime) {
@@ -44,7 +45,7 @@ class EventListItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: InkWell(
-        onTap: onTap,
+        onTap: onTap ?? () => context.go('/events/${event.id}'),
         borderRadius: BorderRadius.circular(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

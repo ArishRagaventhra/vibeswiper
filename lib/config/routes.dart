@@ -75,9 +75,9 @@ class AppRoutes {
 
   static GoRouter router(WidgetRef ref) => GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: login,
+    initialLocation: eventsList,
     debugLogDiagnostics: true,
-    routerNeglect: true,  // Prevents URL changes during internal navigations
+    routerNeglect: false,  // Enable URL updates during navigation
     redirect: (context, state) async {
       // Handle authentication redirects
       final isAuth = supabase.auth.currentUser != null;
