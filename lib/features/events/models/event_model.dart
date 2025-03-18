@@ -24,14 +24,15 @@ class Event {
   final EventStatus status;
   final DateTime? registrationDeadline;
   final double? ticketPrice;
+  final double? vibePrice;
   final String? currency;
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<String>? mediaUrls;
   final String? accessCode;
   final DateTime? deletedAt;
-  final bool isPlatformFeePaid; // Track if Rs. 99 fee is paid
-  final String? platformPaymentId; // Store Razorpay payment ID
+  final bool isPlatformFeePaid;
+  final String? platformPaymentId;
 
   Event({
     required this.id,
@@ -51,6 +52,7 @@ class Event {
     required this.status,
     this.registrationDeadline,
     this.ticketPrice,
+    this.vibePrice,
     this.currency,
     required this.createdAt,
     required this.updatedAt,
@@ -79,6 +81,7 @@ class Event {
     EventStatus? status,
     DateTime? registrationDeadline,
     double? ticketPrice,
+    double? vibePrice,
     String? currency,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -106,6 +109,7 @@ class Event {
       status: status ?? this.status,
       registrationDeadline: registrationDeadline ?? this.registrationDeadline,
       ticketPrice: ticketPrice ?? this.ticketPrice,
+      vibePrice: vibePrice ?? this.vibePrice,
       currency: currency ?? this.currency,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -136,6 +140,7 @@ class Event {
       'status': status.toString().split('.').last,
       'registration_deadline': registrationDeadline?.toIso8601String(),
       'ticket_price': ticketPrice,
+      'vibe_price': vibePrice, // Added vibePrice to toMap
       'currency': currency,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -204,6 +209,9 @@ class Event {
         ticketPrice: map['ticket_price'] != null
             ? (map['ticket_price'] as num).toDouble()
             : null,
+        vibePrice: map['vibe_price'] != null // Added vibePrice to fromMap
+            ? (map['vibe_price'] as num).toDouble()
+            : null,
         currency: map['currency'] as String?,
         createdAt: DateTime.parse(createdAtStr),
         updatedAt: DateTime.parse(updatedAtStr),
@@ -252,6 +260,9 @@ class Event {
           : null,
       ticketPrice: json['ticket_price'] != null
           ? (json['ticket_price'] as num).toDouble()
+          : null,
+      vibePrice: json['vibe_price'] != null // Added vibePrice to fromJson
+          ? (json['vibe_price'] as num).toDouble()
           : null,
       currency: json['currency'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),

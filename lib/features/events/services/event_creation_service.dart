@@ -34,6 +34,7 @@ class EventCreationService {
     Duration? reminderBefore,
     DateTime? registrationDeadline,
     double? ticketPrice,
+    double? vibePrice,
     String? currency,
     List<XFile>? mediaFiles,
     String? accessCode,
@@ -48,6 +49,19 @@ class EventCreationService {
       // Validate location data
       if (location.isEmpty || city.isEmpty || country.isEmpty) {
         throw Exception('Location details are required');
+      }
+
+      // Validate prices for paid events
+      if (eventType == EventType.paid) {
+        if (ticketPrice == null || ticketPrice <= 0) {
+          throw Exception('Valid ticket price is required for paid events');
+        }
+        if (vibePrice == null || vibePrice <= 0) {
+          throw Exception('Valid Vibe price is required for paid events');
+        }
+        if (vibePrice > ticketPrice) {
+          throw Exception('Vibe price cannot be higher than ticket price');
+        }
       }
 
       // 1. Create draft event
@@ -67,6 +81,7 @@ class EventCreationService {
             reminderBefore: reminderBefore,
             registrationDeadline: registrationDeadline,
             ticketPrice: ticketPrice,
+            vibePrice: vibePrice,
             currency: currency,
             mediaFiles: mediaFiles ?? [],
             accessCode: accessCode,

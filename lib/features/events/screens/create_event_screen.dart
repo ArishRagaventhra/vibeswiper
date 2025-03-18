@@ -38,6 +38,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
+  final _vibePriceController = TextEditingController();
   final _accessCodeController = TextEditingController();
   final _maxParticipantsController = TextEditingController();
   final _locationController = TextEditingController();
@@ -490,18 +491,61 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 20),
-                                TextFormField(
-                                  controller: _priceController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  autofocus: true,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Price (INR)',
-                                    hintText: 'Enter amount',
-                                    prefixIcon: Icon(Icons.currency_rupee),
-                                  ),
-                                  onChanged: (value) {
-                                    setState(() {});
-                                  },
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _priceController,
+                                        decoration: InputDecoration(
+                                          labelText: 'Actual Price',
+                                          prefixText: _currency,
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        keyboardType: TextInputType.number,
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please enter the actual price';
+                                          }
+                                          final price = double.tryParse(value);
+                                          if (price == null || price <= 0) {
+                                            return 'Please enter a valid price';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _vibePriceController,
+                                        decoration: InputDecoration(
+                                          labelText: 'Vibe Price',
+                                          prefixText: _currency,
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        keyboardType: TextInputType.number,
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please enter the Vibe price';
+                                          }
+                                          final vibePrice = double.tryParse(value);
+                                          if (vibePrice == null || vibePrice <= 0) {
+                                            return 'Please enter a valid Vibe price';
+                                          }
+                                          final actualPrice = double.tryParse(_priceController.text) ?? 0;
+                                          if (vibePrice > actualPrice) {
+                                            return 'Vibe price cannot be higher than actual price';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Vibe price must be less than or equal to actual price',
+                                  style: Theme.of(context).textTheme.bodySmall,
                                 ),
                                 const SizedBox(height: 16),
                                 Row(
@@ -587,18 +631,61 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 20),
-                                TextFormField(
-                                  controller: _priceController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  autofocus: true,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Price (INR)',
-                                    hintText: 'Enter amount',
-                                    prefixIcon: Icon(Icons.currency_rupee),
-                                  ),
-                                  onChanged: (value) {
-                                    setState(() {});
-                                  },
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _priceController,
+                                        decoration: InputDecoration(
+                                          labelText: 'Actual Price',
+                                          prefixText: _currency,
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        keyboardType: TextInputType.number,
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please enter the actual price';
+                                          }
+                                          final price = double.tryParse(value);
+                                          if (price == null || price <= 0) {
+                                            return 'Please enter a valid price';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: _vibePriceController,
+                                        decoration: InputDecoration(
+                                          labelText: 'Vibe Price',
+                                          prefixText: _currency,
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        keyboardType: TextInputType.number,
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Please enter the Vibe price';
+                                          }
+                                          final vibePrice = double.tryParse(value);
+                                          if (vibePrice == null || vibePrice <= 0) {
+                                            return 'Please enter a valid Vibe price';
+                                          }
+                                          final actualPrice = double.tryParse(_priceController.text) ?? 0;
+                                          if (vibePrice > actualPrice) {
+                                            return 'Vibe price cannot be higher than actual price';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Vibe price must be less than or equal to actual price',
+                                  style: Theme.of(context).textTheme.bodySmall,
                                 ),
                                 const SizedBox(height: 16),
                                 Row(
@@ -1010,6 +1097,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           'event_type': _eventType.toString(),
           'visibility': _visibility.toString(),
           'price': _eventType == EventType.paid ? _priceController.text : '0',
+          'vibe_price': _eventType == EventType.paid ? _vibePriceController.text : '0',
           'currency': _currency,
           'access_code': _accessCodeController.text,
           'max_participants': _maxParticipantsController.text,
@@ -1089,6 +1177,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       return false;
     }
     if (_eventType == EventType.paid && (_priceController.text.isEmpty || double.tryParse(_priceController.text) == null)) {
+      return false;
+    }
+    if (_eventType == EventType.paid && (_vibePriceController.text.isEmpty || double.tryParse(_vibePriceController.text) == null)) {
       return false;
     }
     if (_visibility == EventVisibility.private && _accessCodeController.text.isEmpty) {
@@ -1177,6 +1268,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         category: _selectedCategory,
         tags: _selectedTags,
         ticketPrice: _eventType == EventType.paid ? double.parse(_priceController.text) : null,
+        vibePrice: _eventType == EventType.paid ? double.parse(_vibePriceController.text) : null,
         currency: _currency,
         mediaFiles: _selectedImages,
         accessCode: _accessCodeController.text,

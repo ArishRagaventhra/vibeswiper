@@ -148,6 +148,7 @@ class EventController extends StateNotifier<AsyncValue<List<Event>>> {
     Duration? reminderBefore,
     DateTime? registrationDeadline,
     double? ticketPrice,
+    double? vibePrice,
     String? currency,
     required List<XFile> mediaFiles,
     String? accessCode,
@@ -167,41 +168,65 @@ class EventController extends StateNotifier<AsyncValue<List<Event>>> {
       final now = DateTime.now().toUtc();
 
       // Use the transaction function to create event and chat room
-      final result = await SupabaseConfig.client.rpc(
-        'create_event_with_chat',
-        params: {
-          'p_event_id': eventId,
-          'p_title': title,
-          'p_creator_id': creatorId,
-          'p_description': description,
-          'p_location': location,
-          'p_start_time': startTime.toIso8601String(),
-          'p_end_time': endTime.toIso8601String(),
-          'p_event_type': eventType.toString().split('.').last,
-          'p_visibility': visibility.toString().split('.').last,
-          'p_max_participants': maxParticipants,
-          'p_category': category,
-          'p_tags': tags,
-          'p_recurring_pattern': recurringPattern,
-          'p_reminder_before': reminderBefore?.inMinutes,
-          'p_registration_deadline': registrationDeadline?.toIso8601String(),
-          'p_ticket_price': ticketPrice,
-          'p_currency': currency,
-          'p_media_urls': mediaUrls,
-          'p_created_at': now.toIso8601String(),
-          'p_updated_at': now.toIso8601String(),
-          'p_access_code': accessCode,
-        },
-      );
+      final response = await SupabaseConfig.client
+          .rpc('create_event_with_chat', params: {
+        'p_event_id': eventId,
+        'p_title': title,
+        'p_creator_id': creatorId,
+        'p_description': description,
+        'p_location': location,
+        'p_start_time': startTime.toIso8601String(),
+        'p_end_time': endTime.toIso8601String(),
+        'p_event_type': eventType.toString().split('.').last,
+        'p_visibility': visibility.toString().split('.').last,
+        'p_max_participants': maxParticipants,
+        'p_category': category,
+        'p_tags': tags,
+        'p_recurring_pattern': recurringPattern,
+        'p_reminder_before': reminderBefore?.inMinutes,
+        'p_registration_deadline': registrationDeadline?.toIso8601String(),
+        'p_ticket_price': ticketPrice,
+        'p_vibe_price': vibePrice,
+        'p_currency': currency,
+        'p_media_urls': mediaUrls,
+        'p_created_at': now.toIso8601String(),
+        'p_updated_at': now.toIso8601String(),
+        'p_access_code': accessCode,
+      });
 
-      debugPrint('Event and chat room created successfully: $result');
-      
-      // Parse the event data from the result
-      if (result != null && result['event'] != null) {
-        return Event.fromMap(Map<String, dynamic>.from(result['event']));
+      // Enhanced debugging
+      debugPrint('Full server response: $response');
+
+      // Verify the response structure
+      if (response == null) {
+        throw Exception('No response from server');
+      }
+
+      // The response can be either a Map or a List
+      Map<String, dynamic> result;
+      if (response is List) {
+        if (response.isEmpty) {
+          throw Exception('Empty response from server');
+        }
+        result = Map<String, dynamic>.from(response.first);
+      } else if (response is Map) {
+        result = Map<String, dynamic>.from(response);
+      } else {
+        throw Exception('Invalid response format from server');
+      }
+
+      // Check if we have a successful response
+      if (result['status'] != 'success') {
+        throw Exception('Server returned error status: ${result['status']}');
+      }
+
+      // Fetch the event details using the event_id
+      final eventDetails = await _repository.getEventById(result['event_id']);
+      if (eventDetails == null) {
+        throw Exception('Failed to fetch created event details');
       }
       
-      throw Exception('Failed to create event: Invalid response from server');
+      return eventDetails;
     } catch (e, stackTrace) {
       debugPrint('Error creating event: $e');
       debugPrint('Stack trace: $stackTrace');

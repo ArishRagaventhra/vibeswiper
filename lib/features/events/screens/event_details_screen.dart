@@ -265,85 +265,80 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                             const SizedBox(height: 8),
                             // Event Type and Price Tag
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: event.eventType == EventType.free
-                                            ? Colors.green.withOpacity(0.1)
-                                            : theme.colorScheme.primary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: event.eventType == EventType.free
-                                              ? Colors.green
-                                              : theme.colorScheme.primary,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        event.eventType == EventType.free
-                                            ? 'FREE'
-                                            : event.eventType == EventType.paid && event.ticketPrice != null
-                                                ? '${event.currency ?? 'USD'} ${event.ticketPrice!.toStringAsFixed(2)}'
-                                                : 'INVITATION ONLY',
-                                        style: theme.textTheme.labelSmall?.copyWith(
-                                          color: event.eventType == EventType.free
-                                              ? Colors.green
-                                              : theme.colorScheme.primary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
                                 Container(
-                                  margin: const EdgeInsets.only(right: 8),
+                                  padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        AppTheme.primaryGradientStart,
-                                        AppTheme.primaryGradientEnd,
-                                      ],
-                                    ),
+                                    color: theme.colorScheme.surface,
                                     borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 8,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
                                   ),
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => _addToCalendar(event),
-                                    style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      if (event.vibePrice != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 8),
+                                          child: Row(
+                                            children: [
+                                              Text(
+                                                'Vibe Price:',
+                                                style: theme.textTheme.bodyMedium?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                decoration: BoxDecoration(
+                                                  gradient: const LinearGradient(
+                                                    colors: [
+                                                      AppTheme.primaryGradientStart,
+                                                      AppTheme.primaryGradientEnd,
+                                                    ],
+                                                  ),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  '${event.currency ?? 'USD'} ${event.vibePrice!.toStringAsFixed(2)}',
+                                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'Actual Price:',
+                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '${event.currency ?? 'USD'} ${event.ticketPrice!.toStringAsFixed(2)}',
+                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                              color: Colors.green,
+                                              fontWeight: FontWeight.bold,
+                                              decoration: event.vibePrice != null
+                                                  ? TextDecoration.lineThrough
+                                                  : null,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      elevation: 0,
-                                      backgroundColor: Colors.transparent,
-                                      foregroundColor: Colors.white,
-                                    ).copyWith(
-                                      backgroundColor: MaterialStateProperty.all(Colors.transparent),
-                                      overlayColor: MaterialStateProperty.resolveWith<Color?>(
-                                        (states) {
-                                          if (states.contains(MaterialState.pressed)) {
-                                            return Colors.white.withOpacity(0.1);
-                                          }
-                                          return null;
-                                        },
-                                      ),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.calendar_today_outlined,
-                                      size: 18,
-                                      color: Colors.white,
-                                    ),
-                                    label: Text(
-                                      'Add to Calendar',
-                                      style: theme.textTheme.labelSmall?.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -871,6 +866,7 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
   }
 
   Future<void> _shareEvent(Event event) async {
+    final String eventUrl = 'https://vibeswiper.scompasshub.com/events/${event.id}'; // Use the correct domain
     final String eventDetails = '''
 ${event.title}
 
@@ -878,6 +874,8 @@ ${event.title}
 📍 ${event.location ?? 'Location not specified'}
 
 ${event.description ?? ''}
+
+🔗 Check out the event: $eventUrl
 ''';
     
     await Share.share(eventDetails, subject: 'Check out this event: ${event.title}');
@@ -1118,7 +1116,10 @@ ${event.description ?? ''}
     );
 
     if (await canLaunchUrl(intent)) {
-      await launchUrl(intent, mode: LaunchMode.externalApplication);
+      await launchUrl(
+        intent,
+        mode: LaunchMode.externalApplication,
+      );
       _showSuccessMessage('Opening Google Calendar...');
     } else {
       throw Exception('Could not launch Google Calendar');
