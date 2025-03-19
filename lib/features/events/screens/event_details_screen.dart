@@ -138,51 +138,96 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                 CustomScrollView(
                   controller: _scrollController,
                   slivers: [
-                    // Custom App Bar with Back Button
+                    // Enhanced App Bar with Frosted Glass Effect
                     SliverAppBar(
-                      backgroundColor: appBarColor,
-                      foregroundColor: foregroundColor,
+                      expandedHeight: 60,
+                      floating: true,
+                      pinned: true,
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: Colors.white,
                       elevation: 0,
-                      leading: IconButton(
-                        icon: Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: foregroundColor,
-                          size: 20,
+                      flexibleSpace: ClipRRect(
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            color: appBarColor.withOpacity(0.7),
+                          ),
                         ),
-                        onPressed: () => context.go('/events'),
+                      ),
+                      leading: Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface.withOpacity(0.7),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: foregroundColor,
+                            size: 18,
+                          ),
+                          onPressed: () => context.go('/events'),
+                        ),
                       ),
                       actions: [
                         if (isCreator)
-                          IconButton(
-                            icon: const Icon(Icons.assessment_outlined),
-                            tooltip: 'Event Dashboard',
-                            onPressed: () => context.push('/events/${event.id}/dashboard'),
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface.withOpacity(0.7),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.assessment_outlined,
+                                size: 20,
+                              ),
+                              tooltip: 'Event Dashboard',
+                              onPressed: () => context.push('/events/${event.id}/dashboard'),
+                            ),
                           ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.share_outlined,
-                            color: theme.colorScheme.onSurface,
+                        Container(
+                          margin: const EdgeInsets.only(right: 16),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface.withOpacity(0.7),
+                            shape: BoxShape.circle,
                           ),
-                          onPressed: () => _shareEvent(event),
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.ios_share_rounded,
+                              color: foregroundColor,
+                              size: 20,
+                            ),
+                            onPressed: () => _shareEvent(event),
+                          ),
                         ),
                       ],
                     ),
                     
-                    // Image Section
+                    // Enhanced Image Section with Parallax Effect
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: size.width * 0.075,
+                          horizontal: size.width * 0.05,
                           vertical: 16,
                         ),
-                        child: SizedBox(
+                        child: Container(
                           height: imageHeight,
-                          width: imageWidth,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 15,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(28),
                             child: Stack(
                               children: [
-                                // Image Carousel
+                                // Image Carousel with Parallax Effect
                                 if (event.mediaUrls != null && event.mediaUrls!.isNotEmpty)
                                   PageView.builder(
                                     controller: _pageController,
@@ -193,34 +238,51 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                     },
                                     itemCount: event.mediaUrls!.length,
                                     itemBuilder: (context, index) {
-                                      return Image.network(
-                                        event.mediaUrls![index],
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Center(
-                                            child: Icon(
-                                              Icons.error_outline,
-                                              size: 48,
-                                              color: theme.colorScheme.error,
-                                            ),
-                                          );
+                                      return ShaderMask(
+                                        shaderCallback: (rect) {
+                                          return LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.black.withOpacity(0.5),
+                                            ],
+                                            stops: const [0.7, 1.0],
+                                          ).createShader(rect);
                                         },
+                                        blendMode: BlendMode.darken,
+                                        child: Image.network(
+                                          event.mediaUrls![index],
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return Center(
+                                              child: Icon(
+                                                Icons.error_outline,
+                                                size: 48,
+                                                color: theme.colorScheme.error,
+                                              ),
+                                            );
+                                          },
+                                        ),
                                       );
                                     },
                                   )
                                 else
-                                  Center(
-                                    child: Icon(
-                                      Icons.event,
-                                      size: size.width * 0.15,
-                                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                                  Container(
+                                    color: theme.colorScheme.surfaceVariant,
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.event,
+                                        size: size.width * 0.15,
+                                        color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+                                      ),
                                     ),
                                   ),
                                 
-                                // Page Indicator
+                                // Enhanced Page Indicator
                                 if (event.mediaUrls != null && event.mediaUrls!.length > 1)
                                   Positioned(
-                                    bottom: 16,
+                                    bottom: 20,
                                     left: 0,
                                     right: 0,
                                     child: Row(
@@ -235,9 +297,38 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                           decoration: BoxDecoration(
                                             borderRadius: BorderRadius.circular(4),
                                             color: _currentImageIndex == index
-                                                ? theme.colorScheme.primary
-                                                : theme.colorScheme.onSurface.withOpacity(0.4),
+                                                ? Colors.white
+                                                : Colors.white.withOpacity(0.5),
                                           ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  
+                                // Event Status Badge (if cancelled)
+                                if (event.status == EventStatus.cancelled)
+                                  Positioned(
+                                    top: 20,
+                                    right: 20,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.error,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.2),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        'CANCELLED',
+                                        style: theme.textTheme.labelSmall?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.2,
                                         ),
                                       ),
                                     ),
@@ -251,219 +342,710 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
 
                     // Event Details
                     SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(size.width * 0.05),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              event.title,
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                      child: Container(
+                        margin: EdgeInsets.only(top: 8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(32),
+                            topRight: Radius.circular(32),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, -5),
                             ),
-                            const SizedBox(height: 8),
-                            // Event Type and Price Tag
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
+                          ],
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: size.width * 0.06,
+                            vertical: 24,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Event Title with Category Tag
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      event.title,
+                                      style: theme.textTheme.headlineSmall?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                  ),
+                                  if (event.category != null)
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 8, top: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.secondary.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: theme.colorScheme.secondary.withOpacity(0.3),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        event.category!.toUpperCase(),
+                                        style: theme.textTheme.labelSmall?.copyWith(
+                                          color: theme.colorScheme.secondary,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 16),
+                              
+                              // Redesigned Price Card - More compact for mobile
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                width: double.infinity,
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.sell_rounded,
+                                          color: theme.colorScheme.primary,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Event Pricing',
+                                          style: theme.textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: theme.colorScheme.onSurface,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    // Pricing details with improved layout
+                                    Row(
+                                      children: [
+                                        // Vibe Price (if available)
+                                        if (event.vibePrice != null) ...[
+                                          Expanded(
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                              decoration: BoxDecoration(
+                                                gradient: const LinearGradient(
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                  colors: [
+                                                    AppTheme.primaryGradientStart,
+                                                    AppTheme.primaryGradientEnd,
+                                                  ],
+                                                ),
+                                                borderRadius: BorderRadius.circular(12),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: AppTheme.primaryGradientEnd.withOpacity(0.3),
+                                                    blurRadius: 6,
+                                                    offset: const Offset(0, 3),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.center,
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white.withOpacity(0.2),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: Text(
+                                                      'VIBE PRICE',
+                                                      style: theme.textTheme.labelSmall?.copyWith(
+                                                        color: Colors.white,
+                                                        fontWeight: FontWeight.bold,
+                                                        letterSpacing: 0.8,
+                                                        fontSize: 10,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    '${event.currency ?? 'USD'} ${(event.vibePrice ?? 0).toStringAsFixed(2)}',
+                                                    style: theme.textTheme.titleMedium?.copyWith(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  if (event.ticketPrice != null && event.ticketPrice! > 0) ...[
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      'You save ${event.currency ?? 'USD'} ${((event.ticketPrice ?? 0) - (event.vibePrice ?? 0)).toStringAsFixed(2)}',
+                                                      style: theme.textTheme.bodySmall?.copyWith(
+                                                        color: Colors.white.withOpacity(0.9),
+                                                        fontSize: 10,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                        ],
+                                        // Regular Price
+                                        Expanded(
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                            decoration: BoxDecoration(
+                                              color: theme.colorScheme.surface,
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: theme.colorScheme.outline.withOpacity(0.2),
+                                              ),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.center,
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                  decoration: BoxDecoration(
+                                                    color: theme.colorScheme.surfaceVariant,
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Text(
+                                                    'REGULAR PRICE',
+                                                    style: theme.textTheme.labelSmall?.copyWith(
+                                                      color: theme.colorScheme.onSurfaceVariant,
+                                                      fontWeight: FontWeight.bold,
+                                                      letterSpacing: 0.8,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  (event.ticketPrice == null || event.ticketPrice == 0)
+                                                      ? 'FREE'
+                                                      : '${event.currency ?? 'USD'} ${(event.ticketPrice ?? 0).toStringAsFixed(2)}',
+                                                  style: theme.textTheme.titleMedium?.copyWith(
+                                                    color: (event.ticketPrice == null || event.ticketPrice == 0) 
+                                                        ? Colors.blue 
+                                                        : event.vibePrice != null 
+                                                            ? theme.colorScheme.onSurface.withOpacity(0.6)
+                                                            : theme.colorScheme.onSurface,
+                                                    fontWeight: FontWeight.bold,
+                                                    decoration: event.vibePrice != null
+                                                        ? TextDecoration.lineThrough
+                                                        : null,
+                                                  ),
+                                                ),
+                                                if (event.ticketPrice == null || event.ticketPrice == 0) ...[
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    'No ticket required',
+                                                    style: theme.textTheme.bodySmall?.copyWith(
+                                                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              
+                              // About the Event Section
+                              if (event.description != null && event.description!.isNotEmpty) ...[
+                                const SizedBox(height: 16),
                                 Container(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.all(20),
                                   decoration: BoxDecoration(
                                     color: theme.colorScheme.surface,
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(
+                                      color: theme.colorScheme.outline.withOpacity(0.1),
+                                    ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.1),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 2),
+                                        color: Colors.black.withOpacity(0.03),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 5),
                                       ),
                                     ],
                                   ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      if (event.vibePrice != null)
-                                        Padding(
-                                          padding: const EdgeInsets.only(bottom: 8),
-                                          child: Row(
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.description_outlined,
+                                            color: theme.colorScheme.primary,
+                                            size: 22,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'About This Event',
+                                            style: theme.textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        event.description!,
+                                        style: theme.textTheme.bodyMedium,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              
+                              // Add more space between About Event and Location sections
+                              const SizedBox(height: 32),
+                              
+                              // Event Details Cards
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: theme.colorScheme.outline.withOpacity(0.1),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.03),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Location & Visibility Section
+                                    const SizedBox(height: 24),
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.surface,
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(
+                                          color: theme.colorScheme.outline.withOpacity(0.1),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.03),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 5),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Location Section
+                                          Row(
                                             children: [
+                                              Icon(
+                                                Icons.location_on_outlined,
+                                                color: theme.colorScheme.primary,
+                                                size: 22,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Location',
+                                                      style: theme.textTheme.titleMedium?.copyWith(
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      event.location ?? 'No location specified',
+                                                      style: theme.textTheme.bodyMedium,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          
+                                          const Padding(
+                                            padding: EdgeInsets.symmetric(vertical: 16),
+                                            child: Divider(),
+                                          ),
+                                          
+                                          // Visibility Section
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                event.visibility == EventVisibility.public
+                                                    ? Icons.public_outlined
+                                                    : Icons.lock_outline,
+                                                color: _getVisibilityColor(event.visibility, theme),
+                                                size: 22,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Visibility',
+                                                      style: theme.textTheme.titleMedium?.copyWith(
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(
+                                                            horizontal: 8,
+                                                            vertical: 4,
+                                                          ),
+                                                          decoration: BoxDecoration(
+                                                            color: _getVisibilityColor(event.visibility, theme).withOpacity(0.1),
+                                                            borderRadius: BorderRadius.circular(12),
+                                                          ),
+                                                          child: Text(
+                                                            event.visibility == EventVisibility.public
+                                                                ? 'Public'
+                                                                : 'Private',
+                                                            style: theme.textTheme.bodySmall?.copyWith(
+                                                              color: _getVisibilityColor(event.visibility, theme),
+                                                              fontWeight: FontWeight.bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Expanded(
+                                                          child: Text(
+                                                            event.visibility == EventVisibility.public
+                                                                ? 'Anyone can view and join this event'
+                                                                : 'Only invited users can view and join this event',
+                                                            style: theme.textTheme.bodySmall?.copyWith(
+                                                              color: theme.colorScheme.onSurfaceVariant,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    
+                                    // Date & Time Section
+                                    const SizedBox(height: 16),
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.surface,
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: theme.colorScheme.outline.withOpacity(0.1),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.03),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Title row with Add to Calendar button
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.calendar_today_outlined,
+                                                color: theme.colorScheme.primary,
+                                                size: 18,
+                                              ),
+                                              const SizedBox(width: 8),
                                               Text(
-                                                'Vibe Price:',
-                                                style: theme.textTheme.bodyMedium?.copyWith(
+                                                'Date & Time',
+                                                style: theme.textTheme.titleSmall?.copyWith(
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
-                                              const SizedBox(width: 8),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                                decoration: BoxDecoration(
-                                                  gradient: const LinearGradient(
-                                                    colors: [
-                                                      AppTheme.primaryGradientStart,
-                                                      AppTheme.primaryGradientEnd,
+                                              const Spacer(),
+                                              // Add to Calendar Button - smaller for mobile
+                                              InkWell(
+                                                onTap: () => _addToCalendar(event),
+                                                borderRadius: BorderRadius.circular(12),
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: theme.colorScheme.primaryContainer,
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.add,
+                                                        size: 14,
+                                                        color: theme.colorScheme.onPrimaryContainer,
+                                                      ),
+                                                      const SizedBox(width: 2),
+                                                      Text(
+                                                        'Add to Calendar',
+                                                        style: theme.textTheme.labelSmall?.copyWith(
+                                                          color: theme.colorScheme.onPrimaryContainer,
+                                                          fontWeight: FontWeight.bold,
+                                                          fontSize: 10,
+                                                        ),
+                                                      ),
                                                     ],
                                                   ),
-                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          // Date and time info - stacked layout on small screens
+                                          LayoutBuilder(
+                                            builder: (context, constraints) {
+                                              // Use vertical layout for very narrow screens
+                                              final bool useVerticalLayout = constraints.maxWidth < 300;
+                                              
+                                              if (useVerticalLayout) {
+                                                return Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    // Date column
+                                                    Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text(
+                                                          'Date',
+                                                          style: theme.textTheme.bodySmall?.copyWith(
+                                                            color: theme.colorScheme.onSurfaceVariant,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(height: 2),
+                                                        Text(
+                                                          DateFormat('EEEE, MMM d, y').format(event.startTime),
+                                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                                            fontWeight: FontWeight.w500,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    // Time column
+                                                    Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text(
+                                                          'Time',
+                                                          style: theme.textTheme.bodySmall?.copyWith(
+                                                            color: theme.colorScheme.onSurfaceVariant,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(height: 2),
+                                                        Text(
+                                                          '${DateFormat('h:mm a').format(event.startTime)} - ${DateFormat('h:mm a').format(event.endTime)}',
+                                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                                            fontWeight: FontWeight.w500,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                );
+                                              } else {
+                                                // Row layout for wider screens
+                                                return Row(
+                                                  children: [
+                                                    // Date Column
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          Text(
+                                                            'Date',
+                                                            style: theme.textTheme.bodySmall?.copyWith(
+                                                              color: theme.colorScheme.onSurfaceVariant,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(height: 2),
+                                                          Text(
+                                                            DateFormat('EEEE, MMM d, y').format(event.startTime),
+                                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                                              fontWeight: FontWeight.w500,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    // Time Column
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          Text(
+                                                            'Time',
+                                                            style: theme.textTheme.bodySmall?.copyWith(
+                                                              color: theme.colorScheme.onSurfaceVariant,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(height: 2),
+                                                          Text(
+                                                            '${DateFormat('h:mm a').format(event.startTime)} - ${DateFormat('h:mm a').format(event.endTime)}',
+                                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                                              fontWeight: FontWeight.w500,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    
+                                    // Event Details Cards - Participants Section
+                                    const SizedBox(height: 16),
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.surface,
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: theme.colorScheme.outline.withOpacity(0.1),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.03),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.people_outline,
+                                                    color: theme.colorScheme.primary,
+                                                    size: 18,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    'Participants',
+                                                    style: theme.textTheme.titleSmall?.copyWith(
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              TextButton(
+                                                onPressed: () {
+                                                  context.push('/events/${event.id}/participants');
+                                                },
+                                                style: TextButton.styleFrom(
+                                                  padding: EdgeInsets.zero,
+                                                  minimumSize: Size.zero,
+                                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                                 ),
                                                 child: Text(
-                                                  '${event.currency ?? 'USD'} ${(event.vibePrice ?? 0).toStringAsFixed(2)}',
-                                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                                    color: Colors.white,
+                                                  'See All',
+                                                  style: theme.textTheme.labelSmall?.copyWith(
+                                                    color: theme.colorScheme.primary,
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
                                               ),
                                             ],
                                           ),
-                                        ),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            'Actual Price:',
-                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            (event.ticketPrice == null || event.ticketPrice == 0)
-                                                ? 'Free'
-                                                : '${event.currency ?? 'USD'} ${(event.ticketPrice ?? 0).toStringAsFixed(2)}',
-                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                              color: (event.ticketPrice == null || event.ticketPrice == 0) ? Colors.blue : Colors.green,
-                                              fontWeight: FontWeight.bold,
-                                              decoration: event.vibePrice != null
-                                                  ? TextDecoration.lineThrough
-                                                  : null,
-                                            ),
+                                          const SizedBox(height: 12),
+                                          
+                                          // Participants list
+                                          SizedBox(
+                                            height: 48,
+                                            child: _buildParticipantsSection(event.id),
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (event.category != null)
-                              Container(
-                                margin: const EdgeInsets.only(top: 8),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.secondary.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: theme.colorScheme.secondary,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.category_outlined,
-                                      size: 16,
-                                      color: theme.colorScheme.secondary,
                                     ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      event.category!,
-                                      style: theme.textTheme.labelSmall?.copyWith(
-                                        color: theme.colorScheme.secondary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    const SizedBox(height: 16),
+                                    
+                                    // Bottom spacing to ensure content is above the navigation bar
+                                    Container(
+                                      height: 100,
                                     ),
                                   ],
                                 ),
                               ),
-                            if (event.status == EventStatus.cancelled)
-                              Container(
-                                margin: const EdgeInsets.only(top: 8),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.error.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: theme.colorScheme.error),
-                                ),
-                                child: Text(
-                                  'CANCELLED',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.error,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            SizedBox(height: size.height * 0.02),
-                            _buildDetailSection(
-                              theme,
-                              'Date & Time',
-                              _formatEventDate(event.startTime, event.endTime),
-                              Icons.calendar_today,
-                            ),
-                            SizedBox(height: size.height * 0.015),
-                            _buildDetailSection(
-                              theme,
-                              'Location',
-                              event.location ?? 'No location specified',
-                              Icons.location_on,
-                            ),
-                            SizedBox(height: size.height * 0.015),
-                            _buildDetailSection(
-                              theme,
-                              'Visibility',
-                              event.visibility.name.toUpperCase(),
-                              event.visibility == EventVisibility.public
-                                  ? Icons.public
-                                  : event.visibility == EventVisibility.private
-                                      ? Icons.lock
-                                      : Icons.link_off,
-                              color: event.visibility == EventVisibility.public
-                                  ? Colors.green
-                                  : event.visibility == EventVisibility.private
-                                      ? Colors.red
-                                      : Colors.grey,
-                            ),
-                            SizedBox(height: size.height * 0.03),
-                            if (event.description != null && event.description!.isNotEmpty) ...[
-                              Text(
-                                'About',
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: size.height * 0.01),
-                              Text(
-                                event.description!,
-                                style: theme.textTheme.bodyLarge,
-                              ),
-                              SizedBox(height: size.height * 0.03),
                             ],
-                            _buildParticipantsSection(event.id),
-                            // Add bottom padding for content to be visible above bottom bar
-                            SizedBox(height: size.height * 0.12),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
                 
-                // Bottom Navigation Bar
+                // Enhanced Bottom Navigation Bar with Frosted Glass Effect
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
                   child: ClipRRect(
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                       child: Container(
                         padding: EdgeInsets.only(
                           left: size.width * 0.05,
                           right: size.width * 0.05,
-                          top: 12,
-                          bottom: padding.bottom + 12,
+                          top: 16,
+                          bottom: padding.bottom + 16,
                         ),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surface.withOpacity(0.8),
+                          color: theme.colorScheme.surface.withOpacity(0.85),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, -5),
+                            ),
+                          ],
                           border: Border(
                             top: BorderSide(
                               color: theme.dividerColor.withOpacity(0.1),
@@ -473,49 +1055,67 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                         ),
                         child: Row(
                           children: [
-                            // Join/Leave Button
+                            // Join/Leave Button with Enhanced Design
                             Expanded(
                               flex: 7,
                               child: userParticipationAsync?.when(
                                 data: (participation) {
-                                  bool isCreator = event.creatorId == currentUser?.id; // Check if the user is the creator
-                                  bool isParticipant = participation != null; // Check if the user is a participant
-                                  debugPrint('Is Creator: $isCreator, Is Participant: $isParticipant'); // Debug print
+                                  bool isCreator = event.creatorId == currentUser?.id;
+                                  bool isParticipant = participation != null;
+                                  debugPrint('Is Creator: $isCreator, Is Participant: $isParticipant');
 
-                                  return ElevatedButton(
-                                    onPressed: () {
-                                      HapticFeedback.mediumImpact();
-                                      if (isParticipant || isCreator) {
-                                        _handleLeaveEvent(); // Leave if participant or creator
-                                      } else {
-                                        _handleJoinEvent(event); // Join if not a participant
-                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: (isParticipant || isCreator)
-                                          ? theme.colorScheme.error
-                                          : theme.colorScheme.primary,
-                                      foregroundColor: theme.colorScheme.onPrimary,
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          (isParticipant || isCreator) ? Icons.exit_to_app : Icons.group_add,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          (isParticipant || isCreator) ? 'Leave Event' : 'Join Event',
-                                          style: theme.textTheme.titleMedium?.copyWith(
-                                            color: theme.colorScheme.onPrimary,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                  return Container(
+                                    height: 56,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: (isParticipant || isCreator)
+                                              ? theme.colorScheme.error.withOpacity(0.3)
+                                              : theme.colorScheme.primary.withOpacity(0.3),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
                                         ),
                                       ],
+                                    ),
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        HapticFeedback.mediumImpact();
+                                        if (isParticipant || isCreator) {
+                                          _handleLeaveEvent();
+                                        } else {
+                                          _handleJoinEvent(event);
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: (isParticipant || isCreator)
+                                            ? theme.colorScheme.error
+                                            : theme.colorScheme.primary,
+                                        foregroundColor: theme.colorScheme.onPrimary,
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            (isParticipant || isCreator) ? Icons.exit_to_app : Icons.group_add,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            (isParticipant || isCreator) ? 'Leave Event' : 'Join Event',
+                                            style: theme.textTheme.titleMedium?.copyWith(
+                                              color: theme.colorScheme.onPrimary,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.3,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   );
                                 },
@@ -525,42 +1125,57 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                 error: (_, __) => const SizedBox(),
                               ) ?? const SizedBox(),
                             ),
-                            SizedBox(width: size.width * 0.03),
-                            // Chat Button
-                            Expanded(
-                              flex: 3,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primaryContainer,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () {
+                            
+                            const SizedBox(width: 12),
+                            
+                            // Chat Button (replacing options button)
+                            Container(
+                              height: 56,
+                              width: 56, 
+                              decoration: BoxDecoration(
+                                color: userParticipationAsync?.when(
+                                  data: (participation) => participation != null 
+                                      ? theme.colorScheme.primaryContainer
+                                      : theme.colorScheme.primaryContainer.withOpacity(0.5), 
+                                  loading: () => theme.colorScheme.primaryContainer.withOpacity(0.5),
+                                  error: (_, __) => theme.colorScheme.primaryContainer.withOpacity(0.5),
+                                ) ?? theme.colorScheme.primaryContainer.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: userParticipationAsync?.when(
+                                  data: (participation) => participation != null ? [
+                                    BoxShadow(
+                                      color: theme.colorScheme.primary.withOpacity(0.2),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ] : null,
+                                  loading: () => null,
+                                  error: (_, __) => null,
+                                ) ?? null,
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: userParticipationAsync?.when(
+                                    data: (participation) => participation != null ? () {
                                       HapticFeedback.mediumImpact();
                                       context.push('/events/${widget.eventId}/chat');
-                                    },
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.chat_bubble_outline,
-                                            color: theme.colorScheme.onPrimaryContainer,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Chat',
-                                            style: theme.textTheme.titleMedium?.copyWith(
-                                              color: theme.colorScheme.onPrimaryContainer,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                    } : null,
+                                    loading: () => null,
+                                    error: (_, __) => null,
+                                  ) ?? null,
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.chat_bubble_outline,
+                                      color: userParticipationAsync?.when(
+                                        data: (participation) => participation != null 
+                                            ? theme.colorScheme.onPrimaryContainer
+                                            : theme.colorScheme.onPrimaryContainer.withOpacity(0.5), 
+                                        loading: () => theme.colorScheme.onPrimaryContainer.withOpacity(0.5),
+                                        error: (_, __) => theme.colorScheme.onPrimaryContainer.withOpacity(0.5),
+                                      ) ?? theme.colorScheme.onPrimaryContainer.withOpacity(0.5),
+                                      size: 24,
                                     ),
                                   ),
                                 ),
@@ -631,67 +1246,73 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
     final currentUser = ref.watch(currentUserProvider);
     final event = ref.watch(eventDetailsProvider(eventId)).value;
     final isCreator = currentUser != null && event?.creatorId == currentUser.id;
+    final theme = Theme.of(context);
 
     return Consumer(
       builder: (context, ref, child) {
         final participantsAsync = ref.watch(eventParticipantControllerProvider);
         
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Participants',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => context.push('/events/$eventId/participants'),
-                  child: const Text('See All'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            participantsAsync.when(
-              data: (participants) {
-                if (participants.isEmpty) {
-                  return const Text('No participants yet');
-                }
-                return SizedBox(
-                  height: 60,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: participants.length.clamp(0, 5),
-                    itemBuilder: (context, index) {
-                      final participant = participants[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: CircleAvatar(
-                          radius: 24,
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          backgroundImage: participant.avatarUrl != null
-                              ? NetworkImage(participant.avatarUrl!)
-                              : null,
-                          child: participant.avatarUrl == null
-                              ? Text(
-                                  participant.fullName?[0].toUpperCase() ??
-                                      participant.username?[0].toUpperCase() ??
-                                      '?',
-                                )
-                              : null,
+        return participantsAsync.when(
+          data: (participants) {
+            if (participants.isEmpty) {
+              return Text('No participants yet', 
+                  style: theme.textTheme.bodyMedium);
+            }
+            
+            // Use a simple ListView with no vertical expansion
+            return ListView.builder(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: participants.length.clamp(0, 10),
+              itemBuilder: (context, index) {
+                final participant = participants[index];
+                
+                // For the last visible item, show "more" indicator if needed
+                if (index == 9 && participants.length > 10) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
+                      child: Text(
+                        '+${participants.length - 9}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
                         ),
-                      );
-                    },
+                      ),
+                    ),
+                  );
+                }
+                
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundColor: theme.colorScheme.primary,
+                    backgroundImage: participant.avatarUrl != null
+                        ? NetworkImage(participant.avatarUrl!)
+                        : null,
+                    child: participant.avatarUrl == null
+                        ? Text(
+                            participant.fullName?[0].toUpperCase() ??
+                                participant.username?[0].toUpperCase() ??
+                                '?',
+                          )
+                        : null,
                   ),
                 );
               },
-              loading: () => const CircularProgressIndicator(),
-              error: (_, __) => const Text('Error loading participants'),
-            ),
-          ],
+            );
+          },
+          loading: () => const Center(child: SizedBox(
+            width: 20, height: 20, 
+            child: CircularProgressIndicator(strokeWidth: 2)
+          )),
+          error: (_, __) => Text(
+            'Error loading participants', 
+            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error)
+          ),
         );
       },
     );
@@ -874,8 +1495,20 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
   }
 
   Future<void> _shareEvent(Event event) async {
-    final String eventUrl = 'https://vibeswiper.scompasshub.com/events/${event.id}';
-    final String eventDetails = '''
+    try {
+      // Get device info to tailor the sharing experience
+      bool isWeb = kIsWeb;
+      bool isIOS = !isWeb && Platform.isIOS;
+      bool isAndroid = !isWeb && Platform.isAndroid;
+      
+      // Web URL (works everywhere)
+      final String webUrl = 'https://vibeswiper.scompasshub.com/events/${event.id}';
+      
+      // App-specific URL scheme
+      final String appUrl = 'vibeswiper://events/${event.id}';
+      
+      // Build sharing text with appropriate links and instructions
+      final String eventDetails = '''
 ${event.title}
 
 📅 ${DateFormat('MMM dd, yyyy').format(event.startTime)} at ${DateFormat('hh:mm a').format(event.startTime)}
@@ -883,10 +1516,28 @@ ${event.title}
 
 ${event.description ?? ''}
 
-🔗 Join the event: $eventUrl
+🌐 View online: $webUrl
+
+${isIOS || isAndroid ? '📱 Already have the Vibeswiper app? Copy this link and paste it in your browser to open in app: $appUrl' : ''}
 ''';
-  
-    await Share.share(eventDetails, subject: 'Check out this event: ${event.title}');
+
+      // Use Share.share for cross-platform sharing
+      await Share.share(
+        eventDetails,
+        subject: 'Check out this event: ${event.title}',
+      );
+    } catch (e) {
+      debugPrint('Error sharing event: $e');
+      // Show error message to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not share event: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _addToCalendar(Event event) async {
@@ -1142,5 +1793,17 @@ ${event.description ?? ''}
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+}
+
+// Helper method to get visibility color
+Color _getVisibilityColor(EventVisibility visibility, ThemeData theme) {
+  switch (visibility) {
+    case EventVisibility.public:
+      return Colors.green;
+    case EventVisibility.private:
+      return Colors.red;
+    default:
+      return Colors.grey;
   }
 }

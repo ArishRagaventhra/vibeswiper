@@ -9,10 +9,24 @@ import 'package:scompass_07/config/routes.dart';
 import 'package:scompass_07/config/providers/theme_provider.dart';
 import 'package:scompass_07/shared/widgets/connectivity_wrapper.dart';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
+import 'package:app_links/app_links.dart';
+import 'dart:async';
+
+// Global navigator key for accessing the navigator from anywhere
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// Stream subscription for deep link events
+StreamSubscription? _deepLinkSubscription;
+
+// App links instance
+AppLinks? _appLinks;
 
 Future<void> main() async {
   // Ensure Flutter is initialized and platform channels are ready
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize URL strategy for web (removes the hash from URLs)
+  AppRoutes.initializeUrlStrategy();
   
   // Enable edge-to-edge display and set system UI mode
   await SystemChrome.setEnabledSystemUIMode(
@@ -48,11 +62,61 @@ Future<void> main() async {
     return;
   }
   
+  // Initialize deep linking for mobile platforms only
+  if (!kIsWeb) {
+    await _initializeDeepLinks();
+  }
+  
   runApp(
     const ProviderScope(
       child: MyApp(),
     ),
   );
+}
+
+// Extract deep link initialization to a separate method that's only run on mobile
+Future<void> _initializeDeepLinks() async {
+  if (kIsWeb) return; // Skip on web platforms
+  
+  try {
+    // Initialize AppLinks
+    _appLinks = AppLinks();
+
+    // Get the initial link that opened the app (if any)
+    final Uri? initialLink = await _appLinks!.getInitialAppLink();
+    if (initialLink != null) {
+      debugPrint('App opened with deep link: $initialLink');
+      _handleDeepLink(initialLink);
+    }
+
+    // Listen for app links while the app is running
+    _deepLinkSubscription = _appLinks!.uriLinkStream.listen((Uri uri) {
+      debugPrint('App received deep link while running: $uri');
+      _handleDeepLink(uri);
+    }, onError: (error) {
+      debugPrint('Error handling deep link: $error');
+    });
+  } catch (e) {
+    debugPrint('Error initializing deep links: $e');
+  }
+}
+
+// Helper method to handle deep link navigation
+void _handleDeepLink(Uri uri) {
+  // Check if the URI path matches the expected format
+  if (uri.path.startsWith('/events/')) {
+    // Extract the event ID
+    final String eventId = uri.pathSegments.last;
+    
+    // Use navigatorKey to navigate to the event details screen
+    if (eventId.isNotEmpty) {
+      debugPrint('Navigating to event: $eventId');
+      // Delay navigation slightly to ensure the app is fully loaded
+      Future.delayed(Duration(milliseconds: 300), () {
+        navigatorKey.currentState?.pushNamed('/events/$eventId');
+      });
+    }
+  }
 }
 
 class MyApp extends ConsumerWidget {

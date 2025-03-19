@@ -4,3 +4,4 @@
 /my-events/* /index.html 200
 /account/* /index.html 200
 /notifications/* /index.html 200
+/.well-known/assetlinks.json /assetlinks.json 200

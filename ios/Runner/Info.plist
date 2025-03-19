@@ -51,5 +51,26 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- URL scheme configuration for deep linking -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.vibeswiper.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>vibeswiper</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- Associated domains for universal links -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:vibeswiper.scompasshub.com</string>
+	</array>
 </dict>
 </plist>
