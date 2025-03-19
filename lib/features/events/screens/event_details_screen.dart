@@ -1496,18 +1496,10 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
 
   Future<void> _shareEvent(Event event) async {
     try {
-      // Get device info to tailor the sharing experience
-      bool isWeb = kIsWeb;
-      bool isIOS = !isWeb && Platform.isIOS;
-      bool isAndroid = !isWeb && Platform.isAndroid;
+      // Web URL (works everywhere and will now open the app directly with App Links)
+      final String eventUrl = 'https://vibeswiper.scompasshub.com/events/${event.id}';
       
-      // Web URL (works everywhere)
-      final String webUrl = 'https://vibeswiper.scompasshub.com/events/${event.id}';
-      
-      // App-specific URL scheme
-      final String appUrl = 'vibeswiper://events/${event.id}';
-      
-      // Build sharing text with appropriate links and instructions
+      // Build sharing text with appropriate links
       final String eventDetails = '''
 ${event.title}
 
@@ -1516,9 +1508,7 @@ ${event.title}
 
 ${event.description ?? ''}
 
-🌐 View online: $webUrl
-
-${isIOS || isAndroid ? '📱 Already have the Vibeswiper app? Copy this link and paste it in your browser to open in app: $appUrl' : ''}
+🔗 View event: $eventUrl
 ''';
 
       // Use Share.share for cross-platform sharing
