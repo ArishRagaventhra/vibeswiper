@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-// Use conditional import for web
-import 'url_strategy.dart' if (dart.library) 'url_strategy_web.dart' as url_strategy;
 import 'package:scompass_07/config/supabase_config.dart';
 import 'package:scompass_07/features/auth/screens/login_screen.dart';
 import 'package:scompass_07/features/auth/screens/register_screen.dart';
@@ -76,26 +73,11 @@ class AppRoutes {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
-  // Initialize web URL strategy to use path-based URLs (no hash)
-  static void initializeUrlStrategy() {
-    if (kIsWeb) {
-      try {
-        // Call the platform-specific implementation
-        url_strategy.setUrlStrategy();
-      } catch (e) {
-        debugPrint('Error setting URL strategy: $e');
-      }
-    }
-  }
-  
   static GoRouter router(WidgetRef ref) => GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: eventsList,
     debugLogDiagnostics: true,
     routerNeglect: false,  // Enable URL updates during navigation
-    
-    // Fix: Remove urlPathStrategy parameter which is web-specific
-    // urlPathStrategy: UrlPathStrategy.path,
     
     redirect: (context, state) async {
       // Special handling for deep links
