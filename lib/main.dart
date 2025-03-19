@@ -17,9 +17,6 @@ Future<void> main() async {
   // Ensure Flutter is initialized and platform channels are ready
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize URL strategy for web (removes the hash from URLs)
-  AppRoutes.initializeUrlStrategy();
-  
   // Enable edge-to-edge display and set system UI mode
   await SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.edgeToEdge,
