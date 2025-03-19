@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 // Use conditional import for web
-import 'url_strategy.dart' if (dart.library.html) 'url_strategy_web.dart' as url_strategy;
+import 'url_strategy.dart' if (dart.library) 'url_strategy_web.dart' as url_strategy;
 import 'package:scompass_07/config/supabase_config.dart';
 import 'package:scompass_07/features/auth/screens/login_screen.dart';
 import 'package:scompass_07/features/auth/screens/register_screen.dart';
@@ -127,21 +127,30 @@ class AppRoutes {
     ),
     routes: [
       GoRoute(
+        path: '/events/:eventId',
+        pageBuilder: (context, state) {
+          final eventId = state.pathParameters['eventId'];
+          return NoTransitionPage(
+            child: EventDetailsScreen(eventId: eventId!),
+          );
+        },
+      ),
+      GoRoute(
         path: login,
         pageBuilder: (context, state) => NoTransitionPage(
-          child: const LoginScreen(),
+          child: LoginScreen(),
         ),
       ),
       GoRoute(
         path: register,
         pageBuilder: (context, state) => NoTransitionPage(
-          child: const RegisterScreen(),
+          child: RegisterScreen(),
         ),
       ),
       GoRoute(
         path: forgotPassword,
         pageBuilder: (context, state) => NoTransitionPage(
-          child: const ForgotPasswordScreen(),
+          child: ForgotPasswordScreen(),
         ),
       ),
       ShellRoute(
@@ -151,36 +160,26 @@ class AppRoutes {
           GoRoute(
             path: eventsList,
             pageBuilder: (context, state) => NoTransitionPage(
-              child: const EventsListScreen(),
+              child: EventsListScreen(),
             ),
           ),
           GoRoute(
             path: eventSearch,
             pageBuilder: (context, state) => NoTransitionPage(
-              child: const EventSearchScreen(),
+              child: EventSearchScreen(),
             ),
           ),
           GoRoute(
             path: myEvents,
             pageBuilder: (context, state) => NoTransitionPage(
-              child: const MyEventsScreen(),
+              child: MyEventsScreen(),
             ),
           ),
           GoRoute(
             path: createEvent,
             pageBuilder: (context, state) => NoTransitionPage(
-              child: const CreateEventScreen(),
+              child: CreateEventScreen(),
             ),
-          ),
-          GoRoute(
-            path: eventDetails,
-            name: 'event-details',  
-            pageBuilder: (context, state) {
-              final eventId = state.pathParameters['eventId']!;
-              return NoTransitionPage(
-                child: EventDetailsScreen(eventId: eventId),
-              );
-            },
           ),
           GoRoute(
             path: eventChat,
@@ -230,13 +229,13 @@ class AppRoutes {
           GoRoute(
             path: notifications,
             pageBuilder: (context, state) => NoTransitionPage(
-              child: const NotificationsScreen(),
+              child: NotificationsScreen(),
             ),
           ),
           GoRoute(
             path: editProfile,
             pageBuilder: (context, state) => NoTransitionPage(
-              child: const EditProfileScreen(),
+              child: EditProfileScreen(),
             ),
           ),
           GoRoute(
@@ -252,32 +251,32 @@ class AppRoutes {
           GoRoute(
             path: account,
             pageBuilder: (context, state) => NoTransitionPage(
-              child: const AccountScreen(),
+              child: AccountScreen(),
             ),
           ),
           GoRoute(
             path: settings,
             pageBuilder: (context, state) => NoTransitionPage(
-              child: const SettingsScreen(),
+              child: SettingsScreen(),
             ),
           ),
           GoRoute(
             path: privacyPolicy,
             pageBuilder: (context, state) => NoTransitionPage(
-              child: const PrivacyPolicyScreen(),
+              child: PrivacyPolicyScreen(),
             ),
           ),
           GoRoute(
             path: termsConditions,
             pageBuilder: (context, state) => NoTransitionPage(
-              child: const TermsConditionsScreen(),
+              child: TermsConditionsScreen(),
             ),
           ),
           // Removed notification settings route
           GoRoute(
             path: paymentHistory,
             pageBuilder: (context, state) => NoTransitionPage(
-              child: const PaymentHistoryScreen(),
+              child: PaymentHistoryScreen(),
             ),
           ),
         ],
