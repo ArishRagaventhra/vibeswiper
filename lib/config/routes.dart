@@ -98,29 +98,7 @@ class AppRoutes {
     // urlPathStrategy: UrlPathStrategy.path,
     
     redirect: (context, state) async {
-      // Special handling for deep links
-      if (state.uri.scheme == 'vibeswiper') {
-        final pathSegments = state.uri.pathSegments;
-        
-        // Handle event deep links 
-        if (pathSegments.length >= 2 && pathSegments[0] == 'events') {
-          final eventId = pathSegments[1];
-          return '/events/$eventId';
-        }
-      }
-      
-      // Handle authentication redirects
-      final isAuth = supabase.auth.currentUser != null;
-      final isAuthRoute = state.matchedLocation == login || 
-                         state.matchedLocation == register ||
-                         state.matchedLocation == forgotPassword;
-
-      if (!isAuth && !isAuthRoute) {
-        return login;
-      } else if (isAuth && isAuthRoute) {
-        return eventsList;
-      }
-      return null;
+      return null; 
     },
     errorBuilder: (context, state) => ErrorScreen(
       error: state.error.toString(),
