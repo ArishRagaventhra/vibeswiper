@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../controllers/event_participant_controller.dart';
 import '../models/event_participant_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../shared/widgets/app_bar.dart';
 
 class EventParticipantsScreen extends ConsumerStatefulWidget {
   final String eventId;
@@ -536,19 +537,11 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
 
     return Scaffold(
       backgroundColor: isDark ? Colors.black : Colors.white,
-      appBar: AppBar(
-        title: Text(
-          'Participants',
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+      appBar: SCompassAppBar(
+        title: 'Participants',
+        centerTitle: false,
+        showBackButton: true,
         backgroundColor: isDark ? Colors.black : Colors.white,
-        elevation: 0,
-        iconTheme: IconThemeData(
-          color: isDark ? Colors.white : Colors.black,
-        ),
       ),
       body: Column(
         children: [

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:scompass_07/config/theme.dart';
 import 'package:scompass_07/shared/widgets/responsive_layout.dart';
 
@@ -77,7 +78,13 @@ class SCompassAppBar extends StatelessWidget implements PreferredSizeWidget {
                       size: 20,
                       color: foregroundColor,
                     ),
-                    onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
+                    onPressed: onBackPressed ?? () {
+                      if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      } else {
+                        context.go('/events');
+                      }
+                    },
                   )
                 : null),
         title: Column(

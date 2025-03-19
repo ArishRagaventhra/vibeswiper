@@ -1652,6 +1652,15 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         appBar: SCompassAppBar(
           title: _getStepTitle(wizardState.currentStep),
           centerTitle: false,
+          onBackPressed: () {
+            if (wizardState.canGoToPreviousStep) {
+              _previousStep();
+            } else {
+              // Save form data before navigating away
+              _saveFormData();
+              context.go('/events');
+            }
+          },
         ),
         body: _isLoading
             ? LoadingWidget(message: _loadingText)

@@ -215,7 +215,7 @@ class _EventSearchScreenState extends ConsumerState<EventSearchScreen> {
                       final event = filteredEvents[index];
                       return EventListItem(
                         event: event,
-                        onTap: () => context.go('/events/${event.id}'),
+                        onTap: () => context.goNamed('event-details', pathParameters: {'eventId': event.id}),
                       );
                     },
                   ),

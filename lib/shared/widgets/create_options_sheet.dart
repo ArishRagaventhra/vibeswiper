@@ -41,7 +41,7 @@ class CreateOptionsSheet extends StatelessWidget {
             icon: Icons.event_available,
             title: 'Create Event',
             subtitle: 'Plan and organize events',
-            onTap: () => context.push(AppRoutes.createEvent),
+            onTap: () => context.go(AppRoutes.createEvent),
           ),
           SizedBox(height: 8), // Add some extra padding at the bottom
         ],

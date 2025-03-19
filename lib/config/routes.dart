@@ -109,15 +109,6 @@ class AppRoutes {
     ),
     routes: [
       GoRoute(
-        path: '/events/:eventId',
-        pageBuilder: (context, state) {
-          final eventId = state.pathParameters['eventId'];
-          return NoTransitionPage(
-            child: EventDetailsScreen(eventId: eventId!),
-          );
-        },
-      ),
-      GoRoute(
         path: login,
         pageBuilder: (context, state) => NoTransitionPage(
           child: LoginScreen(),
@@ -135,32 +126,44 @@ class AppRoutes {
           child: ForgotPasswordScreen(),
         ),
       ),
+      GoRoute(
+        path: eventsList,
+        pageBuilder: (context, state) => NoTransitionPage(
+          child: EventsListScreen(),
+        ),
+      ),
+      GoRoute(
+        path: createEvent,
+        name: 'create-event',
+        pageBuilder: (context, state) => NoTransitionPage(
+          child: CreateEventScreen(),
+        ),
+      ),
+      GoRoute(
+        path: eventSearch,
+        name: 'event-search',
+        pageBuilder: (context, state) => NoTransitionPage(
+          child: EventSearchScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/events/:eventId',
+        name: 'event-details',
+        pageBuilder: (context, state) {
+          final eventId = state.pathParameters['eventId'];
+          return NoTransitionPage(
+            child: EventDetailsScreen(eventId: eventId!),
+          );
+        },
+      ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) => child,
         routes: [
           GoRoute(
-            path: eventsList,
-            pageBuilder: (context, state) => NoTransitionPage(
-              child: EventsListScreen(),
-            ),
-          ),
-          GoRoute(
-            path: eventSearch,
-            pageBuilder: (context, state) => NoTransitionPage(
-              child: EventSearchScreen(),
-            ),
-          ),
-          GoRoute(
             path: myEvents,
             pageBuilder: (context, state) => NoTransitionPage(
               child: MyEventsScreen(),
-            ),
-          ),
-          GoRoute(
-            path: createEvent,
-            pageBuilder: (context, state) => NoTransitionPage(
-              child: CreateEventScreen(),
             ),
           ),
           GoRoute(

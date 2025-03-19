@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../shared/widgets/app_bar.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../models/event_model.dart';
 import '../models/event_participant_model.dart';
 import '../controllers/event_controller.dart';
 import '../../../core/widgets/edge_to_edge_container.dart';
+
 
 class EventOrganizerDashboard extends ConsumerStatefulWidget {
   final String eventId;
@@ -30,10 +32,10 @@ class _EventOrganizerDashboardState extends ConsumerState<EventOrganizerDashboar
       statusBarColor: theme.colorScheme.background,
       navigationBarColor: theme.colorScheme.background,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Event Dashboard'),
-          elevation: 0,
-          centerTitle: true,
+        appBar: SCompassAppBar(
+          title: 'Event Dashboard',
+          centerTitle: false,
+          showBackButton: true,
         ),
         body: eventAsync.when(
           data: (event) => participantsAsync.when(

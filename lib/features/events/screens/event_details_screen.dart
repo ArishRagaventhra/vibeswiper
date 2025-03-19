@@ -534,7 +534,7 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                                       : '${event.currency ?? 'USD'} ${(event.ticketPrice ?? 0).toStringAsFixed(2)}',
                                                   style: theme.textTheme.titleMedium?.copyWith(
                                                     color: (event.ticketPrice == null || event.ticketPrice == 0) 
-                                                        ? Colors.blue 
+                                                        ? Colors.green
                                                         : event.vibePrice != null 
                                                             ? theme.colorScheme.onSurface.withOpacity(0.6)
                                                             : theme.colorScheme.onSurface,
@@ -1497,7 +1497,7 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
   Future<void> _shareEvent(Event event) async {
     try {
       // Web URL (works everywhere)
-      final String webUrl = 'https://vibeswiper.scompasshub.com/events/${event.id}';
+      final String webUrl = 'https://vibeswiper.scompasshub.com/#/events/${event.id}';
       
       // Build sharing text with only web URL
       final String eventDetails = '''
