@@ -5,6 +5,7 @@ import '../../../config/theme.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/widgets/bottom_nav_bar.dart';
+import '../../../shared/widgets/responsive_scaffold.dart';
 import '../../payments/providers/payment_provider.dart';
 import '../controllers/event_controller.dart';
 import '../models/event_model.dart';
@@ -31,7 +32,7 @@ class MyEventsScreen extends ConsumerWidget {
       child: DefaultTabController(
         length: tabs.length,
         initialIndex: selectedTab,
-        child: Scaffold(
+        child: ResponsiveScaffold(
           backgroundColor: theme.scaffoldBackgroundColor,
           appBar: AppBar(
             backgroundColor: theme.scaffoldBackgroundColor,
@@ -153,7 +154,6 @@ class MyEventsScreen extends ConsumerWidget {
               _CreatedEventsTab(),
             ],
           ),
-          bottomNavigationBar: const SCompassBottomNavBar(),
         ),
       ),
     );
@@ -181,13 +181,7 @@ class _JoinedEventsTab extends ConsumerWidget {
 
     return eventsAsync.when(
       data: (events) {
-        final filteredEvents = events.where((event) {
-          final isPaidEvent = event.eventType == EventType.paid;
-          final hasSuccessfulPayment = isPaidEvent 
-              ? ref.watch(eventPaymentStatusProvider(event.id))
-              : true;
-          return (event.ticketPrice == 0 || hasSuccessfulPayment);
-        }).toList();
+        final filteredEvents = ref.watch(filteredEventsProvider(events));
 
         return filteredEvents.isEmpty
             ? _buildEmptyState(
@@ -213,13 +207,7 @@ class _CreatedEventsTab extends ConsumerWidget {
 
     return eventsAsync.when(
       data: (events) {
-        final filteredEvents = events.where((event) {
-          final isPaidEvent = event.eventType == EventType.paid;
-          final hasSuccessfulPayment = isPaidEvent 
-              ? ref.watch(eventPaymentStatusProvider(event.id))
-              : true;
-          return (event.ticketPrice == 0 || hasSuccessfulPayment);
-        }).toList();
+        final filteredEvents = ref.watch(filteredEventsProvider(events));
 
         return filteredEvents.isEmpty
             ? _buildEmptyState(

@@ -229,43 +229,126 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                               children: [
                                 // Image Carousel with Parallax Effect
                                 if (event.mediaUrls != null && event.mediaUrls!.isNotEmpty)
-                                  PageView.builder(
-                                    controller: _pageController,
-                                    onPageChanged: (index) {
-                                      setState(() {
-                                        _currentImageIndex = index;
-                                      });
+                                  GestureDetector(
+                                    onHorizontalDragEnd: (details) {
+                                      if (details.primaryVelocity! > 0) {
+                                        // Swipe right - go to previous page
+                                        if (_currentImageIndex > 0) {
+                                          _pageController.previousPage(
+                                            duration: const Duration(milliseconds: 300),
+                                            curve: Curves.easeInOut,
+                                          );
+                                        }
+                                      } else if (details.primaryVelocity! < 0) {
+                                        // Swipe left - go to next page
+                                        if (_currentImageIndex < event.mediaUrls!.length - 1) {
+                                          _pageController.nextPage(
+                                            duration: const Duration(milliseconds: 300),
+                                            curve: Curves.easeInOut,
+                                          );
+                                        }
+                                      }
                                     },
-                                    itemCount: event.mediaUrls!.length,
-                                    itemBuilder: (context, index) {
-                                      return ShaderMask(
-                                        shaderCallback: (rect) {
-                                          return LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              Colors.transparent,
-                                              Colors.black.withOpacity(0.5),
-                                            ],
-                                            stops: const [0.7, 1.0],
-                                          ).createShader(rect);
-                                        },
-                                        blendMode: BlendMode.darken,
-                                        child: Image.network(
-                                          event.mediaUrls![index],
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) {
-                                            return Center(
-                                              child: Icon(
-                                                Icons.error_outline,
-                                                size: 48,
-                                                color: theme.colorScheme.error,
+                                    child: Stack(
+                                      children: [
+                                        PageView.builder(
+                                          controller: _pageController,
+                                          physics: const BouncingScrollPhysics(),
+                                          onPageChanged: (index) {
+                                            setState(() {
+                                              _currentImageIndex = index;
+                                            });
+                                          },
+                                          itemCount: event.mediaUrls!.length,
+                                          itemBuilder: (context, index) {
+                                            return ShaderMask(
+                                              shaderCallback: (rect) {
+                                                return LinearGradient(
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter,
+                                                  colors: [
+                                                    Colors.transparent,
+                                                    Colors.black.withOpacity(0.5),
+                                                  ],
+                                                  stops: const [0.7, 1.0],
+                                                ).createShader(rect);
+                                              },
+                                              blendMode: BlendMode.darken,
+                                              child: Image.network(
+                                                event.mediaUrls![index],
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) {
+                                                  return Center(
+                                                    child: Icon(
+                                                      Icons.error_outline,
+                                                      size: 48,
+                                                      color: theme.colorScheme.error,
+                                                    ),
+                                                  );
+                                                },
                                               ),
                                             );
                                           },
                                         ),
-                                      );
-                                    },
+                                        
+                                        // Left and right navigation buttons for manual control
+                                        if (event.mediaUrls!.length > 1)
+                                        Positioned.fill(
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              // Left arrow
+                                              if (_currentImageIndex > 0)
+                                              GestureDetector(
+                                                onTap: () {
+                                                  _pageController.previousPage(
+                                                    duration: const Duration(milliseconds: 300),
+                                                    curve: Curves.easeInOut,
+                                                  );
+                                                },
+                                                child: Container(
+                                                  width: 40,
+                                                  margin: const EdgeInsets.only(left: 8),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withOpacity(0.3),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.arrow_back_ios_rounded,
+                                                    color: Colors.white,
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                              ),
+                                              
+                                              // Right arrow
+                                              if (_currentImageIndex < event.mediaUrls!.length - 1)
+                                              GestureDetector(
+                                                onTap: () {
+                                                  _pageController.nextPage(
+                                                    duration: const Duration(milliseconds: 300),
+                                                    curve: Curves.easeInOut,
+                                                  );
+                                                },
+                                                child: Container(
+                                                  width: 40,
+                                                  margin: const EdgeInsets.only(right: 8),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withOpacity(0.3),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.arrow_forward_ios_rounded,
+                                                    color: Colors.white,
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   )
                                 else
                                   Container(
@@ -379,26 +462,6 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                       ),
                                     ),
                                   ),
-                                  if (event.category != null)
-                                    Container(
-                                      margin: const EdgeInsets.only(left: 8, top: 4),
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: theme.colorScheme.secondary.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                          color: theme.colorScheme.secondary.withOpacity(0.3),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        event.category!.toUpperCase(),
-                                        style: theme.textTheme.labelSmall?.copyWith(
-                                          color: theme.colorScheme.secondary,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ),
                                 ],
                               ),
                               

@@ -5,7 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../config/theme.dart';
 import '../../../shared/widgets/avatar.dart';
-import '../../../shared/widgets/bottom_nav_bar.dart';
+import '../../../shared/widgets/responsive_scaffold.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/current_profile_provider.dart';
@@ -89,7 +89,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       return const LoadingWidget();
     }
 
-    return Scaffold(
+    return ResponsiveScaffold(
       body: profileAsync.when(
         data: (profile) {
           if (profile == null) return const Center(child: Text('Profile not found'));
@@ -348,7 +348,6 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           child: Text('Error: $error'),
         ),
       ),
-      bottomNavigationBar: const SCompassBottomNavBar(),
     );
   }
 }

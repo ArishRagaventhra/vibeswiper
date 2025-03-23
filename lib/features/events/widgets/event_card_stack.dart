@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/event_model.dart';
 import 'swipeable_event_card.dart';
+// import 'event_card_ad.dart'; // Ad functionality temporarily disabled
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class EventCardStack extends StatefulWidget {
   final List<Event> events;
@@ -25,6 +27,8 @@ class _EventCardStackState extends State<EventCardStack> {
   late List<Event> _events;
   final List<_SwipeHistory> _swipeHistory = [];
   bool _canUndo = false;
+  // bool _showAdCard = false; // Ad functionality temporarily disabled
+  int _cardsSwipedCount = 0;
 
   @override
   void initState() {
@@ -40,6 +44,8 @@ class _EventCardStackState extends State<EventCardStack> {
         _events = List.from(widget.events);
         _swipeHistory.clear();
         _canUndo = false;
+        // _showAdCard = false; // Ad functionality temporarily disabled
+        _cardsSwipedCount = 0;
       });
     }
   }
@@ -49,6 +55,18 @@ class _EventCardStackState extends State<EventCardStack> {
       _events.remove(event);
       _swipeHistory.add(_SwipeHistory(event: event, isRight: isRight));
       _canUndo = true;
+      _cardsSwipedCount++;
+      
+      // Show an ad after every 3 cards are swiped (only on mobile)
+      // Ad functionality temporarily disabled
+      /*
+      if (!kIsWeb && _cardsSwipedCount % 3 == 0 && _events.isNotEmpty) {
+        _showAdCard = true;
+      } else {
+        _showAdCard = false;
+      }
+      */
+      
       if (_events.isEmpty) {
         widget.onStackEmpty();
       }
@@ -63,6 +81,8 @@ class _EventCardStackState extends State<EventCardStack> {
     setState(() {
       _events.insert(0, lastSwipe.event);
       _canUndo = _swipeHistory.isNotEmpty;
+      _cardsSwipedCount--;
+      // _showAdCard = !kIsWeb && _cardsSwipedCount > 0 && _cardsSwipedCount % 3 == 0; // Ad functionality temporarily disabled
     });
   }
 
@@ -110,30 +130,34 @@ class _EventCardStackState extends State<EventCardStack> {
               child: Stack(
                 clipBehavior: Clip.none,
                 fit: StackFit.expand,
-                children: _events.take(_stackCount).map((event) {
-                  final index = _events.indexOf(event);
-                  final scale = 1.0 - (index * 0.02);
-                  final verticalOffset = index * 2.0;
+                children: [
+                  // Show regular event cards
+                  ..._events.take(_stackCount).map((event) {
+                    final index = _events.indexOf(event);
+                    
+                    final scale = 1.0 - (index * 0.02);
+                    final verticalOffset = index * 2.0;
 
-                  return Positioned(
-                    top: verticalOffset,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 4), // Small bottom margin for cards
-                      child: Transform.scale(
-                        scale: scale,
-                        child: SwipeableEventCard(
-                          key: ValueKey(event.id),
-                          event: event,
-                          onSwipe: (isRight) => _onSwipe(isRight, event),
-                          onTap: () => widget.onTap(event),
+                    return Positioned(
+                      top: verticalOffset,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 4), // Small bottom margin for cards
+                        child: Transform.scale(
+                          scale: scale,
+                          child: SwipeableEventCard(
+                            key: ValueKey(event.id),
+                            event: event,
+                            onSwipe: (isRight) => _onSwipe(isRight, event),
+                            onTap: () => widget.onTap(event),
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList().reversed.toList(),
+                    );
+                  }).toList().reversed.toList(),
+                ],
               ),
             ),
             if (_canUndo)

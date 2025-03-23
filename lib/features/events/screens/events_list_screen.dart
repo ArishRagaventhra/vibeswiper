@@ -6,6 +6,7 @@ import 'package:scompass_07/config/routes.dart';
 import 'package:scompass_07/config/supabase_config.dart';
 import 'package:scompass_07/features/events/controllers/event_controller.dart';
 import 'package:scompass_07/features/events/models/event_model.dart';
+import 'package:scompass_07/shared/widgets/responsive_scaffold.dart';
 import 'package:scompass_07/shared/widgets/bottom_nav_bar.dart';
 import 'package:scompass_07/shared/widgets/error_widget.dart';
 import 'package:scompass_07/shared/widgets/loading_widget.dart';
@@ -18,6 +19,7 @@ import '../models/event_participant_model.dart';
 import '../widgets/event_filters.dart';
 import '../widgets/event_search_bar.dart';
 import '../widgets/event_card_stack.dart';
+// import '../widgets/event_card_ad.dart'; // Ad functionality temporarily disabled
 import 'dart:async';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
 
@@ -190,12 +192,8 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
       final matchesCategory = _selectedCategory == null || 
           (event.category?.toLowerCase() == _selectedCategory?.toLowerCase() && event.category != null);
 
-      // Check if the event is paid and the user has a successful payment
-      final isPaidEvent = event.eventType == EventType.paid;
-      final hasSuccessfulPayment = _checkUserPaymentStatus(event.id);
-
-      return matchesSearch && matchesStatus && matchesCategory && 
-             (!isPaidEvent || hasSuccessfulPayment);
+      // No longer filtering based on payment status
+      return matchesSearch && matchesStatus && matchesCategory;
     }).toList()
       ..sort((a, b) {
         switch (_selectedSort) {
@@ -211,20 +209,6 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
       });
   }
 
-  bool _checkUserPaymentStatus(String eventId) {
-    // Fetch the user's payment history and check if there's a successful payment for the eventId
-    final paymentsAsync = ref.read(paymentProvider);
-    bool hasSuccessfulPayment = false;
-    paymentsAsync.when(
-      data: (payments) {
-        hasSuccessfulPayment = payments.any((payment) => payment.eventId == eventId && payment.status == 'success');
-      },
-      loading: () {},
-      error: (_, __) {},
-    );
-    return hasSuccessfulPayment;
-  }
-
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventControllerProvider);
@@ -236,7 +220,7 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
     return EdgeToEdgeContainer(
       statusBarColor: theme.colorScheme.background,
       navigationBarColor: theme.colorScheme.background,
-      child: Scaffold(
+      child: ResponsiveScaffold(
         appBar: AppBar(
           backgroundColor: appBarColor,
           foregroundColor: foregroundColor,
@@ -306,40 +290,297 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                 }
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: EventCardStack(
-                    events: filteredEvents,
-                    onSwipe: (event, isRight) async {
-                      if (isRight) {
-                        try {
-                          await ref.read(favoriteEventsProvider.notifier).favoriteEvent(event.id);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Added ${event.title} to favorites'),
-                                action: SnackBarAction(
-                                  label: 'UNDO',
-                                  onPressed: () {
-                                    ref.read(favoriteEventsProvider.notifier).unfavoriteEvent(event.id);
-                                  },
-                                ),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to favorite event: ${e.toString()}'),
-                                backgroundColor: theme.colorScheme.error,
-                              ),
-                            );
-                          }
-                        }
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Determine if we're on a large screen (desktop/tablet landscape)
+                      final isLargeScreen = constraints.maxWidth > 900;
+                      
+                      // Calculate maximum card width
+                      // For smaller screens, use almost full width
+                      // For larger screens, limit width to create a better card appearance
+                      final maxCardWidth = isLargeScreen 
+                          ? 550.0  // Fixed width for larger screens
+                          : constraints.maxWidth;
+                      
+                      // If we're on a small screen, just show the card
+                      if (!isLargeScreen) {
+                        return Center(
+                          child: SizedBox(
+                            width: maxCardWidth,
+                            child: EventCardStack(
+                              events: filteredEvents,
+                              onSwipe: (event, isRight) async {
+                                if (isRight) {
+                                  try {
+                                    await ref.read(favoriteEventsProvider.notifier).favoriteEvent(event.id);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Added ${event.title} to favorites'),
+                                          action: SnackBarAction(
+                                            label: 'UNDO',
+                                            onPressed: () {
+                                              ref.read(favoriteEventsProvider.notifier).unfavoriteEvent(event.id);
+                                            },
+                                          ),
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Failed to favorite event: ${e.toString()}'),
+                                          backgroundColor: theme.colorScheme.error,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                              onTap: (event) => context.goNamed('event-details', pathParameters: {'eventId': event.id}),
+                              onStackEmpty: () => ref.refresh(eventControllerProvider),
+                            ),
+                          ),
+                        );
                       }
+                      
+                      // For large screens, create a row with side panels
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Center - Event Card
+                          Expanded(
+                            flex: 2,
+                            child: Center(
+                              child: SizedBox(
+                                width: maxCardWidth,
+                                child: EventCardStack(
+                                  events: filteredEvents,
+                                  onSwipe: (event, isRight) async {
+                                    if (isRight) {
+                                      try {
+                                        await ref.read(favoriteEventsProvider.notifier).favoriteEvent(event.id);
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Added ${event.title} to favorites'),
+                                              action: SnackBarAction(
+                                                label: 'UNDO',
+                                                onPressed: () {
+                                                  ref.read(favoriteEventsProvider.notifier).unfavoriteEvent(event.id);
+                                                },
+                                              ),
+                                              duration: const Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Failed to favorite event: ${e.toString()}'),
+                                              backgroundColor: theme.colorScheme.error,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                                  onTap: (event) => context.goNamed('event-details', pathParameters: {'eventId': event.id}),
+                                  onStackEmpty: () => ref.refresh(eventControllerProvider),
+                                ),
+                              ),
+                            ),
+                          ),
+                          
+                          // Right panel - Event Tips and Stats
+                          SizedBox(
+                            width: 280, // Fixed width for the right panel
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 16.0, top: 16.0, right: 16.0),
+                              child: Column(
+                                children: [
+                                  // Tips Card
+                                  Card(
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    color: theme.colorScheme.surface,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            theme.colorScheme.surface,
+                                            theme.colorScheme.surface.withOpacity(0.8),
+                                          ],
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: theme.shadowColor.withOpacity(0.1),
+                                            blurRadius: 10,
+                                            spreadRadius: 0,
+                                          ),
+                                        ],
+                                        border: Border.all(
+                                          color: theme.colorScheme.surfaceVariant,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                  color: theme.colorScheme.surfaceVariant,
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Icon(
+                                                  Icons.lightbulb_outline, 
+                                                  color: Colors.yellow.shade800,
+                                                  size: 24,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                'Event Tips',
+                                                style: theme.textTheme.titleMedium?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: theme.colorScheme.onSurface,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 20),
+                                          _buildColorfulTipItem(
+                                            icon: Icons.swipe_right_alt,
+                                            text: 'Swipe right to add to favorites',
+                                            theme: theme,
+                                            color: Colors.green,
+                                          ),
+                                          const SizedBox(height: 14),
+                                          _buildColorfulTipItem(
+                                            icon: Icons.swipe_left_alt,
+                                            text: 'Swipe left to skip',
+                                            theme: theme,
+                                            color: Colors.red,
+                                          ),
+                                          const SizedBox(height: 14),
+                                          _buildColorfulTipItem(
+                                            icon: Icons.touch_app,
+                                            text: 'Tap to view event details',
+                                            theme: theme,
+                                            color: Colors.blue,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  
+                                  const SizedBox(height: 16),
+                                  
+                                  // Stats Card
+                                  Card(
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    color: theme.colorScheme.surface,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            theme.colorScheme.surface,
+                                            theme.colorScheme.surface.withOpacity(0.8),
+                                          ],
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: theme.shadowColor.withOpacity(0.1),
+                                            blurRadius: 10,
+                                            spreadRadius: 0,
+                                          ),
+                                        ],
+                                        border: Border.all(
+                                          color: theme.colorScheme.surfaceVariant,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(8),
+                                                decoration: BoxDecoration(
+                                                  color: theme.colorScheme.surfaceVariant,
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Icon(
+                                                  Icons.bar_chart, 
+                                                  color: Colors.green.shade800,
+                                                  size: 24,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                'Event Stats',
+                                                style: theme.textTheme.titleMedium?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: theme.colorScheme.onSurface,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 20),
+                                          _buildColorfulStatItem(
+                                            label: 'Total Events',
+                                            value: '${filteredEvents.length}',
+                                            theme: theme,
+                                            color: Colors.purple,
+                                          ),
+                                          const SizedBox(height: 14),
+                                          _buildColorfulStatItem(
+                                            label: 'Upcoming This Week',
+                                            value: '${filteredEvents.where((e) => 
+                                              e.startTime.isAfter(DateTime.now()) && 
+                                              e.startTime.isBefore(DateTime.now().add(const Duration(days: 7)))
+                                            ).length}',
+                                            theme: theme,
+                                            color: Colors.orange,
+                                          ),
+                                          const SizedBox(height: 14),
+                                          _buildColorfulStatItem(
+                                            label: 'Free Events',
+                                            value: '${filteredEvents.where((e) => e.eventType == EventType.free).length}',
+                                            theme: theme,
+                                            color: Colors.teal,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
                     },
-                    onTap: (event) => context.goNamed('event-details', pathParameters: {'eventId': event.id}),
-                    onStackEmpty: () => ref.refresh(eventControllerProvider),
                   ),
                 );
               },
@@ -351,8 +592,93 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
             ),
           ),
         ),
-        bottomNavigationBar: const SCompassBottomNavBar(),
       ),
+    );
+  }
+
+  // Helper method to build colorful tip items
+  Widget _buildColorfulTipItem({
+    required IconData icon,
+    required String text,
+    required ThemeData theme,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: theme.brightness == Brightness.dark 
+                ? color.withOpacity(0.3) 
+                : color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: theme.shadowColor.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(icon, size: 22, color: color),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Helper method to build colorful stat items
+  Widget _buildColorfulStatItem({
+    required String label,
+    required String value,
+    required ThemeData theme,
+    required Color color,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: theme.brightness == Brightness.dark 
+                ? color.withOpacity(0.3) 
+                : color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: theme.shadowColor.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.brightness == Brightness.dark
+                  ? color.withAlpha(255)  // Brighter in dark mode
+                  : color,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

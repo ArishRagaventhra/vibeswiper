@@ -3,13 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:scompass_07/features/events/widgets/filter_bottom_sheet.dart';
 import 'package:scompass_07/shared/widgets/bottom_nav_bar.dart';
+import 'package:scompass_07/shared/widgets/responsive_scaffold.dart';
 import 'package:scompass_07/config/theme.dart';
 import '../../../config/routes.dart';
 import '../../payments/providers/payment_provider.dart';
 import '../models/event_model.dart';
 import '../controllers/event_controller.dart';
 import '../widgets/event_list_item.dart';
-
+// import '../widgets/event_search_ad_item.dart'; // Ad functionality temporarily disabled
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class EventSearchScreen extends ConsumerStatefulWidget {
   const EventSearchScreen({Key? key}) : super(key: key);
@@ -49,24 +51,12 @@ class _EventSearchScreenState extends ConsumerState<EventSearchScreen> {
     });
   }
 
-  bool _checkUserPaymentStatus(String eventId) {
-    // Watch the payment provider instead of reading it
-    final paymentsAsync = ref.watch(paymentProvider);
-    return paymentsAsync.when(
-      data: (payments) => payments.any((payment) => 
-        payment.eventId == eventId && payment.status == 'success'
-      ),
-      loading: () => false,
-      error: (_, __) => false,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventControllerProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return ResponsiveScaffold(
       appBar: AppBar(
         title: Text(
           'Explore',
@@ -213,6 +203,7 @@ class _EventSearchScreenState extends ConsumerState<EventSearchScreen> {
                     itemCount: filteredEvents.length,
                     itemBuilder: (context, index) {
                       final event = filteredEvents[index];
+                      
                       return EventListItem(
                         event: event,
                         onTap: () => context.goNamed('event-details', pathParameters: {'eventId': event.id}),
@@ -254,7 +245,6 @@ class _EventSearchScreenState extends ConsumerState<EventSearchScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const SCompassBottomNavBar(),
     );
   }
 
@@ -275,11 +265,7 @@ class _EventSearchScreenState extends ConsumerState<EventSearchScreen> {
           (event.ticketPrice == 0 || event.ticketPrice == null) :
           (_maxPrice == null || (event.ticketPrice ?? 0) <= _maxPrice!);
 
-      final isPaidEvent = event.eventType == EventType.paid;
-      final hasSuccessfulPayment = isPaidEvent ? _checkUserPaymentStatus(event.id) : true;
-
-      return matchesSearch && matchesCategory && matchesDateRange && matchesPrice && 
-             (!isPaidEvent || hasSuccessfulPayment);
+      return matchesSearch && matchesCategory && matchesDateRange && matchesPrice;
     }).toList();
   }
 

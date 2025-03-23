@@ -8,6 +8,32 @@ buildscript {
     }
 }
 
+// Add a namespace fix for plugins
+// This fixes the "Namespace not specified" error for Google Mobile Ads and other plugins
+gradle.beforeProject { project ->
+    // Check if the project is a plugin library (not the main app)
+    if (project.name != "app") {
+        // Add a listener to be notified when the project is evaluated
+        project.afterEvaluate {
+            if (project.plugins.hasPlugin('com.android.library')) {
+                // Check if the library has no namespace set
+                if (!project.android.namespace && project.android.hasProperty('namespace')) {
+                    // Set a default namespace based on the packageName or applicationId
+                    def manifestFile = project.file('src/main/AndroidManifest.xml')
+                    if (manifestFile.exists()) {
+                        def manifestText = manifestFile.text
+                        def packageMatch = manifestText =~ /package=["']([^"']+)["']/
+                        if (packageMatch.find()) {
+                            def packageName = packageMatch.group(1)
+                            project.android.namespace = packageName
+                            println "Setting namespace for ${project.name} to ${packageName}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 allprojects {
     repositories {

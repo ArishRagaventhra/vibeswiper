@@ -9,6 +9,9 @@ import 'package:scompass_07/config/routes.dart';
 import 'package:scompass_07/config/providers/theme_provider.dart';
 import 'package:scompass_07/shared/widgets/connectivity_wrapper.dart';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:scompass_07/shared/services/ad_service.dart';
+import 'package:scompass_07/shared/widgets/native_ad_factory.dart';
 
 // Global navigator key for accessing the navigator from anywhere
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -40,6 +43,20 @@ Future<void> main() async {
   ServicesBinding.instance.defaultBinaryMessenger.setMessageHandler(platform.name, (message) async {
     return null;
   });
+  
+  // Initialize Google Mobile Ads SDK
+  if (!kIsWeb) {
+    // Initialize AdMob for mobile platforms only
+    await MobileAds.instance.initialize();
+    
+    // Explicitly initialize AdService
+    final adService = AdService();
+    await adService.initialize();
+    
+    // Note: Native ad factories should be registered in platform-specific code
+    // Android: MainActivity.java
+    // iOS: AppDelegate.swift
+  }
   
   // Initialize Supabase with proper error handling
   try {
