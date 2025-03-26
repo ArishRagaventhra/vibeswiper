@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
 import '../models/chat_media.dart';
-import 'package:timeago/timeago.dart' as timeago;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../profile/providers/profile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -133,7 +132,7 @@ class ChatMessageBubble extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            timeago.format(message.createdAt),
+                            _formatTimestamp(message.createdAt),
                             style: theme.textTheme.bodySmall?.copyWith(
                               fontSize: 11,
                               color: isMe
@@ -416,6 +415,33 @@ class ChatMessageBubble extends ConsumerWidget {
           ),
         );
       }
+    }
+  }
+
+  // Custom time formatting method that properly handles older messages
+  String _formatTimestamp(DateTime messageTime) {
+    final now = DateTime.now();
+    final difference = now.difference(messageTime);
+    
+    // For messages less than a minute old
+    if (difference.inMinutes < 1) {
+      return 'now';
+    }
+    // For messages less than an hour old
+    else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    }
+    // For messages less than a day old
+    else if (difference.inDays < 1) {
+      return '${difference.inHours}h ago';
+    }
+    // For messages less than a week old
+    else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    }
+    // For older messages, use the date
+    else {
+      return '${messageTime.day}/${messageTime.month}/${messageTime.year}';
     }
   }
 }

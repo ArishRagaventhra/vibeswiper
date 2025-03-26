@@ -8,6 +8,7 @@ import 'package:scompass_07/features/auth/providers/auth_provider.dart';
 import 'package:scompass_07/shared/widgets/responsive_layout.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +23,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedEmail = prefs.getString('saved_email');
+    final savedPassword = prefs.getString('saved_password');
+    
+    if (savedEmail != null && savedPassword != null) {
+      setState(() {
+        _emailController.text = savedEmail;
+        _passwordController.text = savedPassword;
+        _rememberMe = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -43,6 +65,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             password: _passwordController.text,
             context: context,
           );
+      
+      // Save credentials if Remember Me is checked
+      if (_rememberMe) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('saved_email', _emailController.text.trim());
+        await prefs.setString('saved_password', _passwordController.text);
+      } else {
+        // Clear saved credentials if Remember Me is unchecked
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('saved_email');
+        await prefs.remove('saved_password');
+      }
       
       debugPrint('Login successful, navigating to events list');
       
@@ -256,6 +290,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   }
                                   return null;
                                 },
+                              ),
+                              // Remember Me Checkbox
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: Checkbox(
+                                        value: _rememberMe,
+                                        activeColor: AppTheme.primaryGradientStart,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        onChanged: (bool? value) {
+                                          setState(() {
+                                            _rememberMe = value ?? false;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Remember me',
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               const SizedBox(height: AppTheme.spacing24),
                               // Login Button
@@ -605,6 +670,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               }
               return null;
             },
+          ),
+          // Remember Me Checkbox
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Row(
+              children: [
+                SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: Checkbox(
+                    value: _rememberMe,
+                    activeColor: AppTheme.primaryGradientStart,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    onChanged: (bool? value) {
+                      setState(() {
+                        _rememberMe = value ?? false;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Remember me',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: AppTheme.spacing24),
           // Login Button

@@ -38,11 +38,14 @@ class ChatRepository {
         return null;
       }
 
+      // Use orderBy to get the oldest chat room first and limit to 1 to avoid multiple rows
       final response = await _supabase
           .from('event_chat_rooms')
           .select()
           .eq('event_id', eventId)
           .eq('room_type', 'general')
+          .order('created_at', ascending: true)
+          .limit(1)
           .maybeSingle();
       
       debugPrint('Chat room query response: $response');
@@ -98,8 +101,10 @@ class ChatRepository {
             final filtered = events.where((room) =>
               room['event_id'] == eventId &&
               room['room_type'] == 'general'
-            );
+            ).toList();
             if (filtered.isEmpty) return null;
+            
+            // Take only the first room if multiple exist
             return ChatRoom.fromMap(filtered.first);
           });
     } catch (e) {
@@ -177,7 +182,7 @@ class ChatRepository {
       }
 
       // Create the message
-      final messageData = await _supabase
+      final messageDataResponse = await _supabase
           .from('event_chat_messages')
           .insert({
             'chat_room_id': roomId,
@@ -196,15 +201,24 @@ class ChatRepository {
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
           })
-          .select()
-          .single();
+          .select();
+      
+      if (messageDataResponse.isEmpty) {
+        throw Exception('Failed to create message');
+      }
+      
+      final messageData = messageDataResponse.first;
 
       // Get sender profile in a separate query
       final senderProfile = await _supabase
           .from('profiles')
           .select()
           .eq('id', _supabase.auth.currentUser!.id)
-          .single();
+          .maybeSingle();
+      
+      if (senderProfile == null) {
+        throw Exception('Failed to get sender profile');
+      }
 
       return ChatMessage.fromMap({
         ...messageData,

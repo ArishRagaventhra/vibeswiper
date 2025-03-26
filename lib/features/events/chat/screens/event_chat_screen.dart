@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:scompass_07/config/routes.dart';
+import 'package:scompass_07/config/theme.dart';
 import '../../controllers/event_controller.dart';
 import '../controllers/chat_controller.dart';
 import '../models/chat_message.dart';
@@ -92,7 +93,7 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
             color: foregroundColor,
             size: 20,
           ),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.pop(),
         ),
         title: eventAsync.when(
           data: (event) => Row(
@@ -195,6 +196,11 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
 
                         return messagesAsync.when(
                           data: (messages) {
+                            bool hasCurrentUserSentMessage = false;
+                            if (messages.isNotEmpty) {
+                              hasCurrentUserSentMessage = messages.any((msg) => msg.senderId == currentUserId);
+                            }
+
                             if (messages.isEmpty) {
                               return Center(
                                 child: Column(
@@ -219,55 +225,178 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
                                         color: theme.disabledColor,
                                       ),
                                     ),
+                                    SizedBox(height: size.height * 0.03),
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: size.width * 0.1),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          Text(
+                                            'Frequently asked questions:',
+                                            textAlign: TextAlign.center,
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: theme.disabledColor,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          SizedBox(height: size.height * 0.015),
+                                          Wrap(
+                                            alignment: WrapAlignment.center,
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              _buildQuestionPill(
+                                                context,
+                                                'What is the price?',
+                                                theme,
+                                                onTap: () => _setAndSendTemplateMessage(
+                                                  'What is the price?',
+                                                  chatRoom.id,
+                                                ),
+                                              ),
+                                              _buildQuestionPill(
+                                                context,
+                                                'Where exactly is the location?',
+                                                theme,
+                                                onTap: () => _setAndSendTemplateMessage(
+                                                  'Where exactly is the location?',
+                                                  chatRoom.id,
+                                                ),
+                                              ),
+                                              _buildQuestionPill(
+                                                context,
+                                                'What should I bring?',
+                                                theme,
+                                                onTap: () => _setAndSendTemplateMessage(
+                                                  'What should I bring?',
+                                                  chatRoom.id,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
                               );
                             }
 
-                            return ListView.builder(
-                              controller: _scrollController,
-                              reverse: true,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: size.width * 0.04,
-                                vertical: size.height * 0.02,
-                              ),
-                              itemCount: messages.length,
-                              itemBuilder: (context, index) {
-                                final message = messages[index];
-                                final showDate = index == messages.length - 1 ||
-                                    !_isSameDay(message.createdAt, messages[index + 1].createdAt);
-                                
-                                return Column(
-                                  children: [
-                                    if (showDate)
-                                      Padding(
-                                        padding: EdgeInsets.symmetric(vertical: size.height * 0.01),
-                                        child: Center(
-                                          child: Container(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: size.width * 0.03,
-                                              vertical: size.height * 0.006,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: theme.dividerColor.withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            child: Text(
-                                              _formatMessageDate(message.createdAt),
-                                              style: theme.textTheme.bodySmall?.copyWith(
-                                                color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                            return Stack(
+                              children: [
+                                ListView.builder(
+                                  controller: _scrollController,
+                                  reverse: true,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: size.width * 0.04,
+                                    vertical: size.height * 0.02,
+                                  ),
+                                  itemCount: messages.length,
+                                  itemBuilder: (context, index) {
+                                    final message = messages[index];
+                                    final showDate = index == messages.length - 1 ||
+                                        !_isSameDay(message.createdAt, messages[index + 1].createdAt);
+                                    
+                                    return Column(
+                                      children: [
+                                        if (showDate)
+                                          Padding(
+                                            padding: EdgeInsets.symmetric(vertical: size.height * 0.01),
+                                            child: Center(
+                                              child: Container(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: size.width * 0.03,
+                                                  vertical: size.height * 0.006,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: theme.dividerColor.withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  _formatMessageDate(message.createdAt),
+                                                  style: theme.textTheme.bodySmall?.copyWith(
+                                                    color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                                                  ),
+                                                ),
                                               ),
                                             ),
                                           ),
+                                        ChatMessageBubble(
+                                          message: message,
+                                          isMe: message.senderId == currentUserId,
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                                if (!hasCurrentUserSentMessage)
+                                  Positioned(
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            theme.scaffoldBackgroundColor.withOpacity(0),
+                                            theme.scaffoldBackgroundColor,
+                                          ],
                                         ),
                                       ),
-                                    ChatMessageBubble(
-                                      message: message,
-                                      isMe: message.senderId == currentUserId,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          Text(
+                                            'Ask a question:',
+                                            textAlign: TextAlign.center,
+                                            style: theme.textTheme.bodySmall?.copyWith(
+                                              color: theme.hintColor,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          SizedBox(height: 8),
+                                          Wrap(
+                                            alignment: WrapAlignment.center,
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              _buildQuestionPill(
+                                                context,
+                                                'What is the price?',
+                                                theme,
+                                                onTap: () => _setAndSendTemplateMessage(
+                                                  'What is the price?',
+                                                  chatRoom.id,
+                                                ),
+                                              ),
+                                              _buildQuestionPill(
+                                                context,
+                                                'Where exactly is the location?',
+                                                theme,
+                                                onTap: () => _setAndSendTemplateMessage(
+                                                  'Where exactly is the location?',
+                                                  chatRoom.id,
+                                                ),
+                                              ),
+                                              _buildQuestionPill(
+                                                context,
+                                                'What should I bring?',
+                                                theme,
+                                                onTap: () => _setAndSendTemplateMessage(
+                                                  'What should I bring?',
+                                                  chatRoom.id,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ],
-                                );
-                              },
+                                  ),
+                              ],
                             );
                           },
                           loading: () => const Center(child: CircularProgressIndicator()),
@@ -377,5 +506,50 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
+  }
+
+  void _setAndSendTemplateMessage(String message, String roomId) {
+    HapticFeedback.selectionClick();
+    ref.read(chatMessagesProvider(roomId).notifier).sendMessage(
+      content: message,
+      type: MessageType.text,
+    );
+    _scrollToBottom();
+  }
+
+  Widget _buildQuestionPill(
+    BuildContext context,
+    String question,
+    ThemeData theme, {
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.primaryGradientStart, // Purple
+              AppTheme.primaryGradientEnd,   // Pink
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          question,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
   }
 }
