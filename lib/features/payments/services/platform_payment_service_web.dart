@@ -27,13 +27,23 @@ class WebPaymentService implements PlatformPaymentService {
         'contact': userContact,
       },
       'handler': js.allowInterop((response) {
-        final paymentId = response['razorpay_payment_id'];
-        final orderId = response['razorpay_order_id'];
-        onSuccess(paymentId, orderId);
+        try {
+          final paymentId = response['razorpay_payment_id'];
+          final orderId = response['razorpay_order_id'];
+          onSuccess(paymentId, orderId);
+        } catch (e) {
+          print('Error in payment success handler: $e');
+          onError('Payment processing error: $e');
+        }
       }),
       'modal': {
         'ondismiss': js.allowInterop(() {
-          onError('Payment cancelled by user');
+          try {
+            print('Payment modal dismissed by user');
+            onError('Payment cancelled by user');
+          } catch (e) {
+            print('Error in ondismiss handler: $e');
+          }
         }),
       },
       'theme': {

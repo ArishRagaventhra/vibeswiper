@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../profile/providers/profile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
+import '../../../../shared/widgets/avatar.dart';
 
 class ChatMessageBubble extends ConsumerWidget {
   final ChatMessage message;
@@ -35,26 +36,11 @@ class ChatMessageBubble extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            Container(
-              width: size.width * 0.1,
-              height: size.width * 0.1,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: theme.disabledColor.withOpacity(0.1),
-                image: avatarUrl != null
-                    ? DecorationImage(
-                        image: NetworkImage(avatarUrl),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-              child: avatarUrl == null
-                  ? Icon(
-                      Icons.person,
-                      size: size.width * 0.06,
-                      color: theme.disabledColor,
-                    )
-                  : null,
+            Avatar(
+              url: avatarUrl,
+              size: size.width * 0.1,
+              name: senderName,
+              userId: message.senderId,
             ),
             SizedBox(width: size.width * 0.02),
           ],

@@ -4,6 +4,7 @@ import '../controllers/event_participant_controller.dart';
 import '../models/event_participant_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/widgets/app_bar.dart';
+import '../../../shared/widgets/avatar.dart'; // Import Avatar widget
 
 class EventParticipantsScreen extends ConsumerStatefulWidget {
   final String eventId;
@@ -131,29 +132,11 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: CircleAvatar(
-                radius: 20,
-                backgroundColor: participant.avatarUrl == null 
-                    ? (participant.username?.contains('ragav') ?? false 
-                        ? Colors.orange 
-                        : theme.colorScheme.primary.withOpacity(0.1))
-                    : null,
-                backgroundImage: participant.avatarUrl != null
-                    ? NetworkImage(participant.avatarUrl!)
-                    : null,
-                child: participant.avatarUrl == null
-                    ? Text(
-                        participant.fullName?.substring(0, 1).toUpperCase() ??
-                            participant.username?.substring(0, 1).toUpperCase() ??
-                            '?',
-                        style: TextStyle(
-                          color: participant.username?.contains('ragav') ?? false 
-                              ? Colors.white 
-                              : theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
+              leading: Avatar(
+                url: participant.avatarUrl,
+                size: 40,
+                name: participant.fullName ?? participant.username,
+                userId: participant.userId,
               ),
               title: Text(
                 participant.fullName ?? participant.username ?? 'Unknown',
@@ -401,29 +384,11 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: participant.avatarUrl == null 
-                    ? (participant.username?.contains('ragav') ?? false 
-                        ? Colors.orange 
-                        : theme.colorScheme.primary.withOpacity(0.1))
-                    : null,
-                backgroundImage: participant.avatarUrl != null
-                    ? NetworkImage(participant.avatarUrl!)
-                    : null,
-                child: participant.avatarUrl == null
-                    ? Text(
-                        participant.fullName?.substring(0, 1).toUpperCase() ??
-                            participant.username?.substring(0, 1).toUpperCase() ??
-                            '?',
-                        style: TextStyle(
-                          color: participant.username?.contains('ragav') ?? false 
-                              ? Colors.white 
-                              : theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
+              Avatar(
+                url: participant.avatarUrl,
+                size: 40,
+                name: participant.fullName ?? participant.username,
+                userId: participant.userId,
               ),
               const SizedBox(width: 12),
               Expanded(

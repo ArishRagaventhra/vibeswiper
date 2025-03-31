@@ -7,6 +7,7 @@ import 'package:scompass_07/features/profile/providers/profile_provider.dart';
 import 'package:scompass_07/features/profile/models/profile_model.dart';  
 import 'package:scompass_07/shared/widgets/app_bar.dart';
 import 'package:scompass_07/shared/widgets/loading_widget.dart';
+import 'package:scompass_07/shared/widgets/avatar.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -168,33 +169,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           children: [
                             Hero(
                               tag: 'profile-${profile?.id ?? "new"}',
-                              child: Container(
-                                width: 120,
-                                height: 120,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: theme.cardColor,
-                                  image: profile?.avatarUrl != null
-                                      ? DecorationImage(
-                                          image: NetworkImage(profile!.avatarUrl!),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: theme.shadowColor.withOpacity(0.1),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 10),
-                                    ),
-                                  ],
-                                ),
-                                child: profile?.avatarUrl == null
-                                    ? Icon(
-                                        Icons.person,
-                                        size: 60,
-                                        color: theme.iconTheme.color?.withOpacity(0.5),
-                                      )
-                                    : null,
+                              child: Avatar(
+                                url: profile?.avatarUrl,
+                                size: 120,
+                                name: profile?.fullName ?? profile?.username,
+                                userId: profile?.id,
                               ),
                             ),
                             Positioned(

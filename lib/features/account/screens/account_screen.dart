@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:in_app_review/in_app_review.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../config/theme.dart';
@@ -65,13 +66,18 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   }
 
   Future<void> _rateApp() async {
-    final Uri url = Uri.parse(
-      'https://play.google.com/store/apps/details?id=com.packages.scompass&pcampaignid=web_share',
+    // Direct Play Store URL for the app - this will open the rating flow directly
+    final Uri playStoreUrl = Uri.parse(
+      'https://play.google.com/store/apps/details?id=com.packages.scompass&showRating=true',
     );
-
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
+    
+    try {
+      // Open directly in Play Store app to show the rating dialog
+      await launchUrl(
+        playStoreUrl,
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not open Play Store')),
@@ -151,6 +157,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                               child: Avatar(
                                 url: profile.avatarUrl,
                                 size: 70,
+                                name: profile.fullName ?? profile.username,
+                                userId: profile.id,
                               ),
                             ),
                             const SizedBox(width: 16),

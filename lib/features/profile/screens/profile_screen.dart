@@ -83,6 +83,8 @@ class ProfileScreen extends ConsumerWidget {
                             child: Avatar(
                               url: profile.avatarUrl,
                               size: 120,
+                              name: profile.fullName ?? profile.username,
+                              userId: profile.id,
                             ),
                           ),
                         ),

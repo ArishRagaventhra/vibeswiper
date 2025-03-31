@@ -23,7 +23,7 @@ class ChatRepository {
     try {
       // First check if the user has access to the event
       final userId = _supabase.auth.currentUser?.id;
-      debugPrint('Getting chat room for event $eventId, user $userId');
+      debugPrint('Getting announcements chat room for event $eventId, user $userId');
       
       if (userId == null) {
         debugPrint('User not authenticated');
@@ -38,21 +38,35 @@ class ChatRepository {
         return null;
       }
 
-      // Use orderBy to get the oldest chat room first and limit to 1 to avoid multiple rows
+      // Get the announcements chat room
       final response = await _supabase
           .from('event_chat_rooms')
           .select()
           .eq('event_id', eventId)
-          .eq('room_type', 'general')
-          .order('created_at', ascending: true)
+          .eq('room_type', 'announcements')
           .limit(1)
           .maybeSingle();
       
-      debugPrint('Chat room query response: $response');
+      debugPrint('Announcements chat room query response: $response');
       
       if (response == null) {
-        debugPrint('No chat room found for event');
-        return null;
+        debugPrint('No announcements chat room found for event');
+        
+        // As a fallback, try to get any chat room for the event
+        final fallbackResponse = await _supabase
+            .from('event_chat_rooms')
+            .select()
+            .eq('event_id', eventId)
+            .order('created_at', ascending: true)
+            .limit(1)
+            .maybeSingle();
+            
+        if (fallbackResponse == null) {
+          return null;
+        }
+        
+        debugPrint('Found fallback chat room: ${fallbackResponse['room_type']}');
+        return ChatRoom.fromMap(fallbackResponse);
       }
       
       return ChatRoom.fromMap(response);
@@ -65,15 +79,15 @@ class ChatRepository {
 
   Future<ChatRoom> createChatRoom(String eventId) async {
     try {
-      debugPrint('Creating new chat room for event $eventId');
+      debugPrint('Creating main chat room for event $eventId');
       final now = DateTime.now().toUtc();
       final response = await _supabase
           .from('event_chat_rooms')
           .insert({
             'event_id': eventId,
-            'name': 'General',
-            'room_type': 'general',
-            'description': 'General chat room for event',
+            'name': 'Main Chat',
+            'room_type': 'main',
+            'description': 'Main community chat room for event',
             'created_at': now.toIso8601String(),
             'updated_at': now.toIso8601String(),
             'is_active': true
@@ -81,7 +95,7 @@ class ChatRepository {
           .select()
           .single();
       
-      debugPrint('Chat room created successfully: $response');
+      debugPrint('Main chat room created successfully: $response');
       return ChatRoom.fromMap(response);
     } catch (e, stackTrace) {
       debugPrint('Error creating chat room: $e');
@@ -91,26 +105,30 @@ class ChatRepository {
   }
 
   Stream<ChatRoom?> watchChatRoom(String eventId) {
-    try {
-      return _supabase
-          .from('event_chat_rooms')
-          .stream(primaryKey: ['id'])
-          .map((events) {
-            if (events.isEmpty) return null;
-            // Filter events in-memory since we can't chain .eq() on stream
-            final filtered = events.where((room) =>
-              room['event_id'] == eventId &&
-              room['room_type'] == 'general'
-            ).toList();
-            if (filtered.isEmpty) return null;
-            
-            // Take only the first room if multiple exist
-            return ChatRoom.fromMap(filtered.first);
-          });
-    } catch (e) {
-      debugPrint('Error watching chat room: $e');
+    debugPrint('Watching announcements chat room for event $eventId');
+    final userId = _supabase.auth.currentUser?.id;
+    
+    if (userId == null) {
+      debugPrint('User not authenticated');
       return Stream.value(null);
     }
+    
+    // Get announcements chat room to watch
+    return _supabase
+      .from('event_chat_rooms')
+      .stream(primaryKey: ['id'])
+      .map((events) {
+        if (events.isEmpty) return null;
+        
+        // Filter in memory for the announcements room for this event
+        final filteredEvents = events.where((room) => 
+          room['event_id'] == eventId && 
+          room['room_type'] == 'announcements'
+        ).toList();
+        
+        if (filteredEvents.isEmpty) return null;
+        return ChatRoom.fromMap(filteredEvents.first);
+      });
   }
 
   Future<bool> _checkEventAccess(String eventId, String userId) async {
@@ -146,6 +164,75 @@ class ChatRepository {
       return event['creator_id'] == userId;
     } catch (e) {
       debugPrint('Error checking if user is event creator: $e');
+      return false;
+    }
+  }
+
+  // Payment Link Operations
+  Future<bool> updatePaymentLink(String roomId, String paymentLink) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return false;
+      
+      // Get the chatroom
+      final chatRoom = await _supabase
+          .from('event_chat_rooms')
+          .select('event_id')
+          .eq('id', roomId)
+          .single();
+      
+      // Check if user is event creator
+      final eventId = chatRoom['event_id'];
+      final isCreator = await _isEventCreator(eventId, userId);
+      
+      if (!isCreator) {
+        debugPrint('User is not authorized to update payment link');
+        return false;
+      }
+      
+      // Update the payment link
+      await _supabase
+          .from('event_chat_rooms')
+          .update({'payment_link': paymentLink, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('id', roomId);
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error updating payment link: $e');
+      return false;
+    }
+  }
+  
+  Future<bool> removePaymentLink(String roomId) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return false;
+      
+      // Get the chatroom
+      final chatRoom = await _supabase
+          .from('event_chat_rooms')
+          .select('event_id')
+          .eq('id', roomId)
+          .single();
+      
+      // Check if user is event creator
+      final eventId = chatRoom['event_id'];
+      final isCreator = await _isEventCreator(eventId, userId);
+      
+      if (!isCreator) {
+        debugPrint('User is not authorized to remove payment link');
+        return false;
+      }
+      
+      // Remove the payment link
+      await _supabase
+          .from('event_chat_rooms')
+          .update({'payment_link': null, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('id', roomId);
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error removing payment link: $e');
       return false;
     }
   }

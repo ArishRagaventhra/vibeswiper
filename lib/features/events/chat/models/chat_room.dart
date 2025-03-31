@@ -17,6 +17,7 @@ class ChatRoom with _$ChatRoom {
     required DateTime updatedAt,
     DateTime? lastMessageAt,
     @Default(true) bool isActive,
+    String? paymentLink,
   }) = _ChatRoom;
 
   factory ChatRoom.fromJson(Map<String, dynamic> json) => _$ChatRoomFromJson(json);
@@ -34,6 +35,7 @@ class ChatRoom with _$ChatRoom {
           ? DateTime.parse(map['last_message_at'] as String) 
           : null,
       isActive: map['is_active'] as bool? ?? true,
+      paymentLink: map['payment_link'] as String?,
     );
   }
 
@@ -48,6 +50,7 @@ class ChatRoom with _$ChatRoom {
       'updated_at': updatedAt.toIso8601String(),
       'last_message_at': lastMessageAt?.toIso8601String(),
       'is_active': isActive,
+      'payment_link': paymentLink,
     };
   }
 }

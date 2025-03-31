@@ -19,6 +19,7 @@ _$ChatRoomImpl _$$ChatRoomImplFromJson(Map<String, dynamic> json) =>
           ? null
           : DateTime.parse(json['lastMessageAt'] as String),
       isActive: json['isActive'] as bool? ?? true,
+      paymentLink: json['paymentLink'] as String?,
     );
 
 Map<String, dynamic> _$$ChatRoomImplToJson(_$ChatRoomImpl instance) =>
@@ -32,4 +33,5 @@ Map<String, dynamic> _$$ChatRoomImplToJson(_$ChatRoomImpl instance) =>
       'updatedAt': instance.updatedAt.toIso8601String(),
       'lastMessageAt': instance.lastMessageAt?.toIso8601String(),
       'isActive': instance.isActive,
+      'paymentLink': instance.paymentLink,
     };

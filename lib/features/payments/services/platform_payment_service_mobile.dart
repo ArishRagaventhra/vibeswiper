@@ -39,7 +39,15 @@ class MobilePaymentService implements PlatformPaymentService {
 
       _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (PaymentFailureResponse response) {
         debugPrint('Payment error: code=${response.code}, message=${response.message}');
-        onError(response.message ?? 'Payment failed');
+        try {
+          // Use a safer approach when calling the error handler
+          // The message might be null, so provide a fallback
+          final errorMessage = response.message ?? 'Payment failed or was cancelled';
+          onError(errorMessage);
+        } catch (e) {
+          // If callback execution fails, at least log it
+          debugPrint('Error in payment error callback: $e');
+        }
       });
 
       _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, (ExternalWalletResponse response) {

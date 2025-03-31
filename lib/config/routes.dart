@@ -13,11 +13,13 @@ import 'package:scompass_07/features/events/screens/create_event_screen.dart';
 import 'package:scompass_07/features/events/screens/events_list_screen.dart';
 import 'package:scompass_07/features/events/screens/event_details_screen.dart';
 import 'package:scompass_07/features/events/screens/edit_event_screen.dart';
+import 'package:scompass_07/features/events/screens/event_payment_screen.dart';
 import 'package:scompass_07/features/events/chat/screens/event_chat_screen.dart';
 import 'package:scompass_07/features/events/screens/my_events_screen.dart';
 import 'package:scompass_07/features/events/screens/event_participants_screen.dart';
 import 'package:scompass_07/features/events/screens/event_responses_dashboard.dart';
 import 'package:scompass_07/features/events/screens/event_organizer_dashboard.dart';
+import 'package:scompass_07/features/events/chat/screens/payment_analytics_screen.dart';
 import 'package:scompass_07/features/profile/providers/profile_provider.dart';
 import 'package:scompass_07/features/forum/routes/forum_routes.dart';
 import '../features/account/screens/account_screen.dart';
@@ -68,7 +70,9 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String privacyPolicy = '/settings/privacy-policy';
   static const String termsConditions = '/settings/terms-conditions';
+  static const String eventPayment = '/events/payment';
   static const String paymentHistory = '/payments/history';
+  static const String paymentAnalytics = '/events/:eventId/payment-analytics';
 
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -146,6 +150,21 @@ class AppRoutes {
           child: EventSearchScreen(),
         ),
       ),
+      // Payment route must come before generic event route
+      GoRoute(
+        path: eventPayment,
+        name: 'event-payment',
+        pageBuilder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return NoTransitionPage(
+            child: EventPaymentScreen(
+              eventId: extra['eventId'] as String,
+              eventName: extra['eventName'] as String,
+              onPaymentSuccess: extra['onPaymentSuccess'] as VoidCallback,
+            ),
+          );
+        },
+      ),
       GoRoute(
         path: '/events/:eventId',
         name: 'event-details',
@@ -199,6 +218,19 @@ class AppRoutes {
               final eventId = state.pathParameters['eventId']!;
               return NoTransitionPage(
                 child: EventOrganizerDashboard(eventId: eventId),
+              );
+            },
+          ),
+          GoRoute(
+            path: paymentAnalytics,
+            pageBuilder: (context, state) {
+              final eventId = state.pathParameters['eventId']!;
+              final eventName = state.extra as String? ?? 'Event';
+              return NoTransitionPage(
+                child: PaymentAnalyticsScreen(
+                  eventId: eventId,
+                  eventName: eventName,
+                ),
               );
             },
           ),

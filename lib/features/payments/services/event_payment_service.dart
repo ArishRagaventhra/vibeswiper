@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../models/payment.dart';
 import '../providers/payment_provider.dart';
 
 final eventPaymentServiceProvider = Provider((ref) => EventPaymentService(ref));
@@ -8,18 +11,34 @@ class EventPaymentService {
 
   EventPaymentService(this._ref);
 
+  // Function to navigate after successful payment
+  void navigateToEventsListScreen(BuildContext context) {
+    // Navigate to events list screen
+    context.go('/events');
+  }
+
   Future<void> initiateEventCreationPayment({
     required String eventId,
     required String eventName,
     required String userEmail,
     required String userContact,
+    BuildContext? context,
   }) async {
     try {
       await _ref.read(paymentProvider.notifier).initiateEventPayment(
             eventId: eventId,
             eventName: eventName,
             userEmail: userEmail,
-            userContact: userContact,
+            userContact: userContact, 
+            onPaymentFinalized: (Payment payment) {
+              // If payment is successful and we have context, navigate to events list
+              if (payment.isSuccessful && context != null) {
+                // Short delay to ensure UI updates complete
+                Future.delayed(Duration(milliseconds: 500), () {
+                  navigateToEventsListScreen(context);
+                });
+              }
+            },
           );
     } catch (e) {
       // Handle any errors during payment initiation

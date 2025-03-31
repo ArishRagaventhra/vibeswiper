@@ -167,66 +167,60 @@ class EventController extends StateNotifier<AsyncValue<List<Event>>> {
 
       final now = DateTime.now().toUtc();
 
-      // Use the transaction function to create event and chat room
-      final response = await SupabaseConfig.client
-          .rpc('create_event_with_chat', params: {
-        'p_event_id': eventId,
-        'p_title': title,
-        'p_creator_id': creatorId,
-        'p_description': description,
-        'p_location': location,
-        'p_start_time': startTime.toIso8601String(),
-        'p_end_time': endTime.toIso8601String(),
-        'p_event_type': eventType.toString().split('.').last,
-        'p_visibility': visibility.toString().split('.').last,
-        'p_max_participants': maxParticipants,
-        'p_category': category,
-        'p_tags': tags,
-        'p_recurring_pattern': recurringPattern,
-        'p_reminder_before': reminderBefore?.inMinutes,
-        'p_registration_deadline': registrationDeadline?.toIso8601String(),
-        'p_ticket_price': ticketPrice,
-        'p_vibe_price': vibePrice,
-        'p_currency': currency,
-        'p_media_urls': mediaUrls,
-        'p_created_at': now.toIso8601String(),
-        'p_updated_at': now.toIso8601String(),
-        'p_access_code': accessCode,
-      });
+      // Use a transaction function to create event WITHOUT creating chat room
+      // This ensures chat room is only created during finalization
+      try {
+        final response = await SupabaseConfig.client
+            .from('events')
+            .insert({
+              'id': eventId,
+              'title': title,
+              'creator_id': creatorId,
+              'description': description,
+              'location': location,
+              'start_time': startTime.toIso8601String(),
+              'end_time': endTime.toIso8601String(),
+              'event_type': eventType.toString().split('.').last,
+              'visibility': visibility.toString().split('.').last,
+              'max_participants': maxParticipants,
+              'category': category,
+              'tags': tags,
+              'recurring_pattern': recurringPattern,
+              'reminder_before': reminderBefore?.inMinutes,
+              'registration_deadline': registrationDeadline?.toIso8601String(),
+              'ticket_price': ticketPrice,
+              'vibe_price': vibePrice,
+              'currency': currency,
+              'media_urls': mediaUrls,
+              'created_at': now.toIso8601String(),
+              'updated_at': now.toIso8601String(),
+              'access_code': accessCode,
+              'status': EventStatus.draft.toString().split('.').last,
+              'is_platform_fee_paid': false,
+            })
+            .select()
+            .single();
 
-      // Enhanced debugging
-      debugPrint('Full server response: $response');
+        // Enhanced debugging
+        debugPrint('Event created: $eventId');
 
-      // Verify the response structure
-      if (response == null) {
-        throw Exception('No response from server');
-      }
-
-      // The response can be either a Map or a List
-      Map<String, dynamic> result;
-      if (response is List) {
-        if (response.isEmpty) {
-          throw Exception('Empty response from server');
+        // Fetch the event details using the event_id
+        final eventDetails = await _repository.getEventById(eventId);
+        if (eventDetails == null) {
+          throw Exception('Failed to fetch created event details');
         }
-        result = Map<String, dynamic>.from(response.first);
-      } else if (response is Map) {
-        result = Map<String, dynamic>.from(response);
-      } else {
-        throw Exception('Invalid response format from server');
-      }
 
-      // Check if we have a successful response
-      if (result['status'] != 'success') {
-        throw Exception('Server returned error status: ${result['status']}');
-      }
+        // Update our state with the newly created event
+        state.whenData((events) {
+          state = AsyncValue.data([...events, eventDetails]);
+        });
 
-      // Fetch the event details using the event_id
-      final eventDetails = await _repository.getEventById(result['event_id']);
-      if (eventDetails == null) {
-        throw Exception('Failed to fetch created event details');
+        return eventDetails;
+      } catch (e) {
+        // Log the specific error
+        debugPrint('Error creating event: $e');
+        rethrow;
       }
-      
-      return eventDetails;
     } catch (e, stackTrace) {
       debugPrint('Error creating event: $e');
       debugPrint('Stack trace: $stackTrace');

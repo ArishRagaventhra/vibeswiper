@@ -8,6 +8,7 @@ import 'package:scompass_07/config/supabase_config.dart';
 import 'package:scompass_07/features/events/controllers/event_controller.dart';
 import 'package:scompass_07/features/events/controllers/event_wizard_controller.dart';
 import 'package:scompass_07/features/events/models/event_model.dart';
+import 'package:scompass_07/features/payments/providers/payment_provider.dart';
 import 'package:scompass_07/shared/widgets/app_bar.dart';
 import 'package:scompass_07/shared/widgets/loading_widget.dart';
 import 'package:scompass_07/shared/widgets/dashed_border.dart';
@@ -77,10 +78,48 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     _countryController.addListener(_validateCurrentStep);
     _accessCodeController.addListener(_validateCurrentStep);
     _maxParticipantsController.addListener(_validateCurrentStep);
+
+    // Add a post-frame callback to set up a listener for payment completion
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Register a navigation function that can be called from anywhere
+      ref.read(globalNavigationFunctionProvider.notifier).state = () {
+        if (mounted && context != null) {
+          debugPrint('Global navigation function called - going to /events');
+          context.go('/events');
+          return true;
+        }
+        return false;
+      };
+    
+      // This will navigate automatically after successful payment
+      // including delayed payment cases
+      ref.listen(navigateToEventsAfterPaymentProvider, (prev, next) {
+        if (next == true && mounted) {
+          // Navigate to events list
+          debugPrint('navigateToEventsAfterPaymentProvider triggered - going to /events');
+          context.go('/events');
+          // Reset the flag
+          ref.read(navigateToEventsAfterPaymentProvider.notifier).state = false;
+        }
+      });
+    });
   }
 
   @override
   void dispose() {
+    // Clear the navigation function when leaving this screen
+    // But don't use addPostFrameCallback since it can cause issues
+    try {
+      // Reset the global navigation function if it belongs to this widget
+      final currentNavFn = ref.read(globalNavigationFunctionProvider);
+      if (currentNavFn != null) {
+        ref.read(globalNavigationFunctionProvider.notifier).state = null;
+      }
+    } catch (e) {
+      // Silently ignore any provider errors during dispose
+      debugPrint('Ignoring provider error during dispose: $e');
+    }
+    
     _titleController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
@@ -1282,18 +1321,23 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           'has_refund_policy': formData['has_refund_policy'],
           'requires_acceptance': formData['requires_acceptance'],
         },
+        context: context, // Pass context for navigation after payment
       );
 
       if (event != null) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Your event has been successfully created!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        if (mounted) {
-          context.go('/events');
+        // For free events only, show success message and navigate
+        // For paid events, navigation will happen in payment flow
+        if (_eventType != EventType.paid) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Your event has been successfully created!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          if (mounted) {
+            context.go('/events');
+          }
         }
       }
     } catch (e) {

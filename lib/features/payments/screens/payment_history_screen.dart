@@ -260,10 +260,23 @@ class PaymentHistoryItem extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppTheme.borderRadiusMedium),
+                  ),
+                  backgroundColor: theme.brightness == Brightness.dark 
+                      ? AppTheme.darkPrimaryColor 
+                      : AppTheme.primaryColor,
+                  foregroundColor: theme.brightness == Brightness.dark 
+                      ? AppTheme.darkLightTextColor 
+                      : AppTheme.lightTextColor,
+                ),
+                child: Text(
+                  'CLOSE',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 1.0,
                   ),
                 ),
-                child: const Text('Close'),
               ),
             ),
           ],

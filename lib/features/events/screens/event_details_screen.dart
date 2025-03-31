@@ -34,6 +34,8 @@ import '../widgets/access_code_bottom_sheet.dart';
 import '../widgets/event_action_dialog.dart';
 import '../widgets/event_join_requirements_dialog.dart';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
+import '../widgets/event_details_instructions_overlay.dart';
+import '../../../shared/widgets/avatar.dart';
 
 class EventDetailsScreen extends ConsumerStatefulWidget {
   final String eventId;
@@ -51,12 +53,34 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
   final _scrollController = ScrollController();
   final _pageController = PageController();
   int _currentImageIndex = 0;
+  late Future<void> _eventFuture;
+  bool _showInstructions = false;
+
+  // Variables to control Vibe Price reveal animation
+  bool _vibePriceRevealed = false;
+  final _vibePriceAnimationDuration = const Duration(milliseconds: 800);
 
   @override
   void initState() {
     super.initState();
-    // Wrap in Future.microtask to ensure it runs after the build
-    Future.microtask(() => _loadEventDetails());
+    _loadEventDetails();
+    _checkFirstTimeUser();
+  }
+
+  Future<void> _checkFirstTimeUser() async {
+    final shouldShow = await EventDetailsInstructions.shouldShowInstructions();
+    if (mounted && shouldShow) {
+      setState(() {
+        _showInstructions = true;
+      });
+    }
+  }
+
+  void _dismissInstructions() {
+    EventDetailsInstructions.markInstructionsAsSeen();
+    setState(() {
+      _showInstructions = false;
+    });
   }
 
   @override
@@ -497,64 +521,129 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                         // Vibe Price (if available)
                                         if (event.vibePrice != null) ...[
                                           Expanded(
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                                              decoration: BoxDecoration(
-                                                gradient: const LinearGradient(
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                  colors: [
-                                                    AppTheme.primaryGradientStart,
-                                                    AppTheme.primaryGradientEnd,
+                                            child: GestureDetector(
+                                              onTap: () {
+                                                setState(() {
+                                                  _vibePriceRevealed = true;
+                                                });
+                                              },
+                                              child: AnimatedContainer(
+                                                duration: _vibePriceAnimationDuration,
+                                                curve: Curves.elasticOut,
+                                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                                                decoration: BoxDecoration(
+                                                  gradient: const LinearGradient(
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                    colors: [
+                                                      AppTheme.primaryGradientStart,
+                                                      AppTheme.primaryGradientEnd,
+                                                    ],
+                                                  ),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: AppTheme.primaryGradientEnd.withOpacity(0.3),
+                                                      blurRadius: 6,
+                                                      offset: const Offset(0, 3),
+                                                    ),
                                                   ],
                                                 ),
-                                                borderRadius: BorderRadius.circular(12),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: AppTheme.primaryGradientEnd.withOpacity(0.3),
-                                                    blurRadius: 6,
-                                                    offset: const Offset(0, 3),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.center,
-                                                children: [
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.white.withOpacity(0.2),
-                                                      borderRadius: BorderRadius.circular(8),
-                                                    ),
-                                                    child: Text(
-                                                      'VIBE PRICE',
-                                                      style: theme.textTheme.labelSmall?.copyWith(
-                                                        color: Colors.white,
-                                                        fontWeight: FontWeight.bold,
-                                                        letterSpacing: 0.8,
-                                                        fontSize: 10,
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white.withOpacity(0.2),
+                                                        borderRadius: BorderRadius.circular(8),
+                                                      ),
+                                                      child: Text(
+                                                        'VIBE PRICE',
+                                                        style: theme.textTheme.labelSmall?.copyWith(
+                                                          color: Colors.white,
+                                                          fontWeight: FontWeight.bold,
+                                                          letterSpacing: 0.8,
+                                                          fontSize: 10,
+                                                        ),
                                                       ),
                                                     ),
-                                                  ),
-                                                  const SizedBox(height: 6),
-                                                  Text(
-                                                    '${event.currency ?? 'USD'} ${(event.vibePrice ?? 0).toStringAsFixed(2)}',
-                                                    style: theme.textTheme.titleMedium?.copyWith(
-                                                      color: Colors.white,
-                                                      fontWeight: FontWeight.bold,
+                                                    const SizedBox(height: 6),
+                                                    AnimatedSwitcher(
+                                                      duration: _vibePriceAnimationDuration,
+                                                      switchInCurve: Curves.elasticOut,
+                                                      switchOutCurve: Curves.easeOut,
+                                                      transitionBuilder: (Widget child, Animation<double> animation) {
+                                                        final offsetAnimation = Tween<Offset>(
+                                                          begin: const Offset(0, -1),
+                                                          end: Offset.zero,
+                                                        ).animate(animation);
+                                                        
+                                                        final scaleAnimation = Tween<double>(
+                                                          begin: 0.5,
+                                                          end: 1.0,
+                                                        ).animate(animation);
+                                                        
+                                                        return SlideTransition(
+                                                          position: offsetAnimation,
+                                                          child: ScaleTransition(
+                                                            scale: scaleAnimation,
+                                                            child: FadeTransition(
+                                                              opacity: animation,
+                                                              child: child,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
+                                                      child: _vibePriceRevealed
+                                                        ? Text(
+                                                            '${event.currency ?? 'USD'} ${(event.vibePrice ?? 0).toStringAsFixed(2)}',
+                                                            key: const ValueKey('price-revealed'),
+                                                            style: theme.textTheme.titleMedium?.copyWith(
+                                                              color: Colors.white,
+                                                              fontWeight: FontWeight.bold,
+                                                            ),
+                                                          )
+                                                        : Container(
+                                                            key: const ValueKey('price-hidden'),
+                                                            height: 24,
+                                                            width: 80,
+                                                            decoration: BoxDecoration(
+                                                              color: Colors.white.withOpacity(0.15),
+                                                              borderRadius: BorderRadius.circular(4),
+                                                            ),
+                                                            child: const Icon(
+                                                              Icons.card_giftcard,
+                                                              color: Colors.white,
+                                                              size: 18,
+                                                            ),
+                                                          ),
                                                     ),
-                                                  ),
-                                                  if (event.ticketPrice != null && event.ticketPrice! > 0) ...[
-                                                    const SizedBox(height: 2),
-                                                    Text(
-                                                      'You save ${event.currency ?? 'USD'} ${((event.ticketPrice ?? 0) - (event.vibePrice ?? 0)).toStringAsFixed(2)}',
-                                                      style: theme.textTheme.bodySmall?.copyWith(
-                                                        color: Colors.white.withOpacity(0.9),
-                                                        fontSize: 10,
+                                                    if (_vibePriceRevealed && event.ticketPrice != null && event.ticketPrice! > 0) ...[
+                                                      AnimatedOpacity(
+                                                        duration: const Duration(milliseconds: 500),
+                                                        opacity: _vibePriceRevealed ? 1.0 : 0.0,
+                                                        child: Text(
+                                                          'You save ${event.currency ?? 'USD'} ${((event.ticketPrice ?? 0) - (event.vibePrice ?? 0)).toStringAsFixed(2)}',
+                                                          style: theme.textTheme.bodySmall?.copyWith(
+                                                            color: Colors.white.withOpacity(0.9),
+                                                            fontSize: 10,
+                                                          ),
+                                                        ),
                                                       ),
-                                                    ),
+                                                    ],
+                                                    if (!_vibePriceRevealed) ...[
+                                                      const SizedBox(height: 4),
+                                                      Text(
+                                                        'Tap to reveal',
+                                                        style: theme.textTheme.bodySmall?.copyWith(
+                                                          color: Colors.white.withOpacity(0.8),
+                                                          fontSize: 10,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ],
-                                                ],
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -1133,9 +1222,7 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                       borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: (isParticipant || isCreator)
-                                              ? theme.colorScheme.error.withOpacity(0.3)
-                                              : theme.colorScheme.primary.withOpacity(0.3),
+                                          color: _getButtonBoxShadowColor(event, isParticipant, isCreator, theme),
                                           blurRadius: 8,
                                           offset: const Offset(0, 4),
                                         ),
@@ -1147,13 +1234,21 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                         if (isParticipant || isCreator) {
                                           _handleLeaveEvent();
                                         } else {
-                                          _handleJoinEvent(event);
+                                          // Check if event is completed before allowing join
+                                          if (DateTime.now().isAfter(event.endTime)) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('This event has already ended and cannot be joined.'),
+                                                backgroundColor: Colors.orange,
+                                              ),
+                                            );
+                                          } else {
+                                            _handleJoinEvent(event);
+                                          }
                                         }
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: (isParticipant || isCreator)
-                                            ? theme.colorScheme.error
-                                            : theme.colorScheme.primary,
+                                        backgroundColor: _getButtonColor(event, isParticipant, isCreator, theme),
                                         foregroundColor: theme.colorScheme.onPrimary,
                                         padding: const EdgeInsets.symmetric(vertical: 16),
                                         elevation: 0,
@@ -1165,12 +1260,12 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Icon(
-                                            (isParticipant || isCreator) ? Icons.exit_to_app : Icons.group_add,
+                                            _getButtonIcon(event, isParticipant, isCreator),
                                             size: 20,
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            (isParticipant || isCreator) ? 'Leave Event' : 'Join Event',
+                                            _getButtonText(event, isParticipant, isCreator),
                                             style: theme.textTheme.titleMedium?.copyWith(
                                               color: theme.colorScheme.onPrimary,
                                               fontWeight: FontWeight.bold,
@@ -1250,6 +1345,13 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                     ),
                   ),
                 ),
+                
+                // Show instructional overlay for first-time users
+                if (_showInstructions)
+                  EventDetailsInstructionsOverlay(
+                    onDismiss: _dismissInstructions,
+                    screenSize: MediaQuery.of(context).size,
+                  ),
               ],
             );
           },
@@ -1334,14 +1436,20 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                 if (index == 9 && participants.length > 10) {
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
-                    child: CircleAvatar(
-                      radius: 24,
-                      backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
-                      child: Text(
-                        '+${participants.length - 9}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: theme.colorScheme.primary.withOpacity(0.2),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '+${participants.length - 9}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -1350,19 +1458,11 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                 
                 return Padding(
                   padding: const EdgeInsets.only(right: 12),
-                  child: CircleAvatar(
-                    radius: 24,
-                    backgroundColor: theme.colorScheme.primary,
-                    backgroundImage: participant.avatarUrl != null
-                        ? NetworkImage(participant.avatarUrl!)
-                        : null,
-                    child: participant.avatarUrl == null
-                        ? Text(
-                            participant.fullName?[0].toUpperCase() ??
-                                participant.username?[0].toUpperCase() ??
-                                '?',
-                          )
-                        : null,
+                  child: Avatar(
+                    url: participant.avatarUrl,
+                    size: 48,
+                    name: participant.fullName ?? participant.username,
+                    userId: participant.userId,
                   ),
                 );
               },
@@ -1847,16 +1947,55 @@ ${event.description ?? ''}
       ),
     );
   }
-}
 
-// Helper method to get visibility color
-Color _getVisibilityColor(EventVisibility visibility, ThemeData theme) {
-  switch (visibility) {
-    case EventVisibility.public:
-      return Colors.green;
-    case EventVisibility.private:
-      return Colors.red;
-    default:
+  Color _getButtonBoxShadowColor(Event event, bool isParticipant, bool isCreator, ThemeData theme) {
+    if (DateTime.now().isAfter(event.endTime)) {
+      return Colors.grey.withOpacity(0.3);
+    } else if (isParticipant || isCreator) {
+      return theme.colorScheme.error.withOpacity(0.3);
+    } else {
+      return theme.colorScheme.primary.withOpacity(0.3);
+    }
+  }
+
+  Color _getButtonColor(Event event, bool isParticipant, bool isCreator, ThemeData theme) {
+    if (DateTime.now().isAfter(event.endTime)) {
       return Colors.grey;
+    } else if (isParticipant || isCreator) {
+      return theme.colorScheme.error;
+    } else {
+      return theme.colorScheme.primary;
+    }
+  }
+
+  IconData _getButtonIcon(Event event, bool isParticipant, bool isCreator) {
+    if (DateTime.now().isAfter(event.endTime)) {
+      return Icons.event_busy;
+    } else if (isParticipant || isCreator) {
+      return Icons.exit_to_app;
+    } else {
+      return Icons.group_add;
+    }
+  }
+
+  String _getButtonText(Event event, bool isParticipant, bool isCreator) {
+    if (DateTime.now().isAfter(event.endTime)) {
+      return 'Event Completed';
+    } else if (isParticipant || isCreator) {
+      return 'Leave Event';
+    } else {
+      return 'Join Event';
+    }
+  }
+
+  Color _getVisibilityColor(EventVisibility visibility, ThemeData theme) {
+    switch (visibility) {
+      case EventVisibility.public:
+        return Colors.green;
+      case EventVisibility.private:
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 }

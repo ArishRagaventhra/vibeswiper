@@ -29,6 +29,7 @@ mixin _$ChatRoom {
   DateTime get updatedAt => throw _privateConstructorUsedError;
   DateTime? get lastMessageAt => throw _privateConstructorUsedError;
   bool get isActive => throw _privateConstructorUsedError;
+  String? get paymentLink => throw _privateConstructorUsedError;
 
   /// Serializes this ChatRoom to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -54,7 +55,8 @@ abstract class $ChatRoomCopyWith<$Res> {
       DateTime createdAt,
       DateTime updatedAt,
       DateTime? lastMessageAt,
-      bool isActive});
+      bool isActive,
+      String? paymentLink});
 }
 
 /// @nodoc
@@ -81,6 +83,7 @@ class _$ChatRoomCopyWithImpl<$Res, $Val extends ChatRoom>
     Object? updatedAt = null,
     Object? lastMessageAt = freezed,
     Object? isActive = null,
+    Object? paymentLink = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -119,6 +122,10 @@ class _$ChatRoomCopyWithImpl<$Res, $Val extends ChatRoom>
           ? _value.isActive
           : isActive // ignore: cast_nullable_to_non_nullable
               as bool,
+      paymentLink: freezed == paymentLink
+          ? _value.paymentLink
+          : paymentLink // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -140,7 +147,8 @@ abstract class _$$ChatRoomImplCopyWith<$Res>
       DateTime createdAt,
       DateTime updatedAt,
       DateTime? lastMessageAt,
-      bool isActive});
+      bool isActive,
+      String? paymentLink});
 }
 
 /// @nodoc
@@ -165,6 +173,7 @@ class __$$ChatRoomImplCopyWithImpl<$Res>
     Object? updatedAt = null,
     Object? lastMessageAt = freezed,
     Object? isActive = null,
+    Object? paymentLink = freezed,
   }) {
     return _then(_$ChatRoomImpl(
       id: null == id
@@ -203,6 +212,10 @@ class __$$ChatRoomImplCopyWithImpl<$Res>
           ? _value.isActive
           : isActive // ignore: cast_nullable_to_non_nullable
               as bool,
+      paymentLink: freezed == paymentLink
+          ? _value.paymentLink
+          : paymentLink // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -219,7 +232,8 @@ class _$ChatRoomImpl extends _ChatRoom {
       required this.createdAt,
       required this.updatedAt,
       this.lastMessageAt,
-      this.isActive = true})
+      this.isActive = true,
+      this.paymentLink})
       : super._();
 
   factory _$ChatRoomImpl.fromJson(Map<String, dynamic> json) =>
@@ -244,10 +258,12 @@ class _$ChatRoomImpl extends _ChatRoom {
   @override
   @JsonKey()
   final bool isActive;
+  @override
+  final String? paymentLink;
 
   @override
   String toString() {
-    return 'ChatRoom(id: $id, eventId: $eventId, name: $name, roomType: $roomType, description: $description, createdAt: $createdAt, updatedAt: $updatedAt, lastMessageAt: $lastMessageAt, isActive: $isActive)';
+    return 'ChatRoom(id: $id, eventId: $eventId, name: $name, roomType: $roomType, description: $description, createdAt: $createdAt, updatedAt: $updatedAt, lastMessageAt: $lastMessageAt, isActive: $isActive, paymentLink: $paymentLink)';
   }
 
   @override
@@ -269,13 +285,15 @@ class _$ChatRoomImpl extends _ChatRoom {
             (identical(other.lastMessageAt, lastMessageAt) ||
                 other.lastMessageAt == lastMessageAt) &&
             (identical(other.isActive, isActive) ||
-                other.isActive == isActive));
+                other.isActive == isActive) &&
+            (identical(other.paymentLink, paymentLink) ||
+                other.paymentLink == paymentLink));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, eventId, name, roomType,
-      description, createdAt, updatedAt, lastMessageAt, isActive);
+      description, createdAt, updatedAt, lastMessageAt, isActive, paymentLink);
 
   /// Create a copy of ChatRoom
   /// with the given fields replaced by the non-null parameter values.
@@ -303,7 +321,8 @@ abstract class _ChatRoom extends ChatRoom {
       required final DateTime createdAt,
       required final DateTime updatedAt,
       final DateTime? lastMessageAt,
-      final bool isActive}) = _$ChatRoomImpl;
+      final bool isActive,
+      final String? paymentLink}) = _$ChatRoomImpl;
   const _ChatRoom._() : super._();
 
   factory _ChatRoom.fromJson(Map<String, dynamic> json) =
@@ -327,6 +346,8 @@ abstract class _ChatRoom extends ChatRoom {
   DateTime? get lastMessageAt;
   @override
   bool get isActive;
+  @override
+  String? get paymentLink;
 
   /// Create a copy of ChatRoom
   /// with the given fields replaced by the non-null parameter values.

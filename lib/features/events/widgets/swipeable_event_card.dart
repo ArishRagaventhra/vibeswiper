@@ -411,7 +411,7 @@ class _SwipeableEventCardState extends State<SwipeableEventCard>
                         child: Text(
                           widget.event.eventType == EventType.free 
                             ? 'FREE'
-                            : '${widget.event.ticketPrice} ${widget.event.currency ?? 'USD'}',
+                            : 'PAID',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,

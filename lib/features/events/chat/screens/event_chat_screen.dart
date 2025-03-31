@@ -3,16 +3,24 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
+
 import 'package:scompass_07/config/routes.dart';
 import 'package:scompass_07/config/theme.dart';
+import '../../../../shared/widgets/avatar.dart';
 import '../../controllers/event_controller.dart';
 import '../controllers/chat_controller.dart';
+import '../controllers/payment_controller.dart';
 import '../models/chat_message.dart';
 import '../models/chat_room.dart';
+import '../models/event_payment.dart';
+import '../models/payment_type.dart';
 import '../repository/chat_repository.dart';
 import '../widgets/chat_message_input.dart';
 import '../widgets/chat_message_bubble.dart';
+import '../widgets/payment_link_banner.dart';
+import '../widgets/payment_method_editor.dart';
 import '../../providers/event_providers.dart';
+
 
 class EventChatScreen extends ConsumerStatefulWidget {
   final String eventId;
@@ -30,14 +38,54 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToBottom = false;
   bool _isTyping = false;
+  bool _isOrganizer = false;
+
+  // Event name provider and currentUser name to be used for payments
+  String _eventName = 'Event';
+  String? _userName;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(chatControllerProvider.notifier).initializeChatRoom(widget.eventId);
+      _checkIfOrganizer();
+      _loadEventDetails();
     });
     _scrollController.addListener(_scrollListener);
+  }
+
+  void _loadEventDetails() async {
+    // Get event details for payment note
+    try {
+      // Use eventDetailsProvider instead of trying to call getEvent on the AsyncValue
+      final event = await ref.read(eventDetailsProvider(widget.eventId).future);
+      if (event != null && mounted) {
+        setState(() {
+          _eventName = event.title; // Use title property instead of name
+        });
+      }
+      
+      // Get current user's name
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser != null) {
+        setState(() {
+          _userName = currentUser.userMetadata?['name'] as String? ?? 
+                     currentUser.email?.split('@').first;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading event details: $e');
+    }
+  }
+
+  Future<void> _checkIfOrganizer() async {
+    final isOrganizer = await ref.read(chatControllerProvider.notifier).isEventCreator(widget.eventId);
+    if (mounted) {
+      setState(() {
+        _isOrganizer = isOrganizer;
+      });
+    }
   }
 
   void _scrollListener() {
@@ -100,19 +148,13 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
             children: [
               Hero(
                 tag: 'event_avatar_${widget.eventId}',
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                  backgroundImage: event?.mediaUrls != null && event!.mediaUrls!.isNotEmpty
-                      ? NetworkImage(event.mediaUrls!.first)
+                child: Avatar(
+                  url: event?.mediaUrls != null && event!.mediaUrls!.isNotEmpty
+                      ? event.mediaUrls!.first
                       : null,
-                  child: event?.mediaUrls == null || event!.mediaUrls!.isEmpty
-                      ? Icon(
-                          Icons.event,
-                          color: theme.colorScheme.primary,
-                          size: 20,
-                        )
-                      : null,
+                  size: 32,
+                  name: event?.title ?? 'Event',
+                  userId: event?.id,
                 ),
               ),
               const SizedBox(width: 8),
@@ -157,6 +199,16 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
           ),
         ),
         actions: [
+          if (_isOrganizer)
+            IconButton(
+              icon: Icon(
+                Icons.payment_outlined,
+                color: foregroundColor,
+                size: 22,
+              ),
+              tooltip: 'Manage Payment Link',
+              onPressed: () => _showPaymentTypeSelectorDialog(widget.eventId),
+            ),
           IconButton(
             icon: Icon(
               Icons.group_outlined,
@@ -189,6 +241,66 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
             children: [
               Column(
                 children: [
+                  // Payment Link Banner (if available)
+                  ref.watch(eventPaymentsStreamProvider(widget.eventId)).when(
+                    data: (payments) {
+                      if (payments.isNotEmpty) {
+                        return PaymentLinkBanner(
+                          payments: payments,
+                          isOrganizer: _isOrganizer,
+                          eventName: _eventName,
+                          userName: _userName,
+                          eventId: widget.eventId,
+                          onEdit: _isOrganizer
+                              ? () => _showPaymentTypeSelectorDialog(widget.eventId)
+                              : null,
+                          onRemove: _isOrganizer
+                              ? (paymentType) => _removePaymentType(widget.eventId, paymentType)
+                              : null,
+                        );
+                      } else if (_isOrganizer) {
+                        // Show a button to add payment options for organizers
+                        return Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.payment_outlined,
+                                size: 16,
+                                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Add payment methods for participants',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                ),
+                              ),
+                              const Spacer(),
+                              TextButton.icon(
+                                onPressed: () => _showPaymentTypeSelectorDialog(widget.eventId),
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Add'),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      } else {
+                        return const SizedBox();
+                      }
+                    },
+                    loading: () => const SizedBox(),
+                    error: (_, __) => const SizedBox(),
+                  ),
                   Expanded(
                     child: Consumer(
                       builder: (context, ref, child) {
@@ -235,7 +347,7 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
                                             'Frequently asked questions:',
                                             textAlign: TextAlign.center,
                                             style: theme.textTheme.bodySmall?.copyWith(
-                                              color: theme.disabledColor,
+                                              color: theme.hintColor,
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
@@ -515,6 +627,125 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
       type: MessageType.text,
     );
     _scrollToBottom();
+  }
+
+  Future<void> _showPaymentTypeSelectorDialog(String eventId) async {
+    // Get existing payments to determine which ones are already added
+    final payments = await ref.read(paymentControllerProvider.notifier).getEventPayments(eventId);
+    
+    // Show payment method editor dialog with both UPI and Razorpay options
+    if (mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => PaymentMethodEditor(
+          eventId: eventId,
+          existingPayments: payments,
+          onPaymentUpdated: () {
+            // Refresh the payment stream - no need to call manually since we use a stream
+          },
+        ),
+      );
+    }
+  }
+
+  // Legacy method - now delegated to the PaymentMethodEditor widget
+  Future<void> _showPaymentLinkDialog(String eventId, PaymentType paymentType) async {
+    // Update to use the new PaymentMethodEditor instead of the deleted PaymentLinkDialog
+    final payments = await ref.read(paymentControllerProvider.notifier).getEventPayments(eventId);
+    
+    if (!mounted) return;
+    
+    // Use the new payment method editor instead
+    await showDialog<void>(
+      context: context,
+      builder: (context) => PaymentMethodEditor(
+        eventId: eventId,
+        existingPayments: payments,
+        // Pre-select the tab based on the payment type
+        initialTabIndex: paymentType == PaymentType.upi ? 0 : 1,
+        onPaymentUpdated: () {
+          // Refresh happens automatically through stream
+        },
+      ),
+    );
+  }
+  
+  Future<void> _removePaymentType(String eventId, PaymentType paymentType) async {
+    try {
+      final success = await ref.read(paymentControllerProvider.notifier).removeEventPaymentByType(eventId, paymentType);
+      
+      if (mounted && success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_getPaymentTypeName(paymentType)} payment removed'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+  
+  String _getPaymentTypeName(PaymentType type) {
+    switch (type) {
+      case PaymentType.upi:
+        return 'UPI';
+      case PaymentType.razorpay:
+        return 'Razorpay';
+      case PaymentType.stripe:
+        return 'Stripe';
+      default:
+        return 'Payment link';
+    }
+  }
+
+  Future<void> _updatePaymentLink(
+    String eventId, 
+    String paymentInfo, 
+    PaymentType paymentType, 
+  ) async {
+    try {
+      final success = await ref.read(paymentControllerProvider.notifier).saveEventPayment(
+        eventId: eventId,
+        paymentInfo: paymentInfo,
+        paymentType: paymentType,
+        // Only needed for url type in legacy mode
+        paymentProcessor: null,
+      );
+      
+      if (mounted && success != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment details updated successfully'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update payment details'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildQuestionPill(

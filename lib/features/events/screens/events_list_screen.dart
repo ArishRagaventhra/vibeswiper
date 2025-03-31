@@ -19,6 +19,7 @@ import '../models/event_participant_model.dart';
 import '../widgets/event_filters.dart';
 import '../widgets/event_search_bar.dart';
 import '../widgets/event_card_stack.dart';
+import '../widgets/swipe_instructions_overlay.dart';
 // import '../widgets/event_card_ad.dart'; // Ad functionality temporarily disabled
 import 'dart:async';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
@@ -42,6 +43,7 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
   late Animation<double> _scaleAnimation;
   late Animation<double> _logoFadeAnimation;
   Size? _screenSize;
+  bool _showInstructions = false;
 
   @override
   void initState() {
@@ -74,6 +76,9 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
         if (currentEvents == null || currentEvents.isEmpty) {
           ref.refresh(eventControllerProvider);
         }
+        
+        // Check if user has seen swipe instructions
+        _checkShowInstructions();
       }
     });
   }
@@ -209,6 +214,21 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
       });
   }
 
+  Future<void> _checkShowInstructions() async {
+    final hasSeenInstructions = await hasSeenSwipeInstructions();
+    if (!hasSeenInstructions && mounted) {
+      setState(() {
+        _showInstructions = true;
+      });
+    }
+  }
+
+  void _dismissInstructions() {
+    setState(() {
+      _showInstructions = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventControllerProvider);
@@ -307,56 +327,9 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                         return Center(
                           child: SizedBox(
                             width: maxCardWidth,
-                            child: EventCardStack(
-                              events: filteredEvents,
-                              onSwipe: (event, isRight) async {
-                                if (isRight) {
-                                  try {
-                                    await ref.read(favoriteEventsProvider.notifier).favoriteEvent(event.id);
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Added ${event.title} to favorites'),
-                                          action: SnackBarAction(
-                                            label: 'UNDO',
-                                            onPressed: () {
-                                              ref.read(favoriteEventsProvider.notifier).unfavoriteEvent(event.id);
-                                            },
-                                          ),
-                                          duration: const Duration(seconds: 2),
-                                        ),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Failed to favorite event: ${e.toString()}'),
-                                          backgroundColor: theme.colorScheme.error,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                }
-                              },
-                              onTap: (event) => context.goNamed('event-details', pathParameters: {'eventId': event.id}),
-                              onStackEmpty: () => ref.refresh(eventControllerProvider),
-                            ),
-                          ),
-                        );
-                      }
-                      
-                      // For large screens, create a row with side panels
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Center - Event Card
-                          Expanded(
-                            flex: 2,
-                            child: Center(
-                              child: SizedBox(
-                                width: maxCardWidth,
-                                child: EventCardStack(
+                            child: Stack(
+                              children: [
+                                EventCardStack(
                                   events: filteredEvents,
                                   onSwipe: (event, isRight) async {
                                     if (isRight) {
@@ -390,6 +363,75 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                                   },
                                   onTap: (event) => context.goNamed('event-details', pathParameters: {'eventId': event.id}),
                                   onStackEmpty: () => ref.refresh(eventControllerProvider),
+                                ),
+                                
+                                // Show instructional overlay for first-time users
+                                if (_showInstructions)
+                                  SwipeInstructionsOverlay(
+                                    onDismiss: _dismissInstructions,
+                                    screenSize: MediaQuery.of(context).size,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+                      
+                      // For large screens, create a row with side panels
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Center - Event Card
+                          Expanded(
+                            flex: 2,
+                            child: Center(
+                              child: SizedBox(
+                                width: maxCardWidth,
+                                child: Stack(
+                                  children: [
+                                    EventCardStack(
+                                      events: filteredEvents,
+                                      onSwipe: (event, isRight) async {
+                                        if (isRight) {
+                                          try {
+                                            await ref.read(favoriteEventsProvider.notifier).favoriteEvent(event.id);
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text('Added ${event.title} to favorites'),
+                                                  action: SnackBarAction(
+                                                    label: 'UNDO',
+                                                    onPressed: () {
+                                                      ref.read(favoriteEventsProvider.notifier).unfavoriteEvent(event.id);
+                                                    },
+                                                  ),
+                                                  duration: const Duration(seconds: 2),
+                                                ),
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text('Failed to favorite event: ${e.toString()}'),
+                                                  backgroundColor: theme.colorScheme.error,
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        }
+                                      },
+                                      onTap: (event) => context.goNamed('event-details', pathParameters: {'eventId': event.id}),
+                                      onStackEmpty: () => ref.refresh(eventControllerProvider),
+                                    ),
+                                    
+                                    // Show instructional overlay for first-time users
+                                    if (_showInstructions)
+                                      SwipeInstructionsOverlay(
+                                        onDismiss: _dismissInstructions,
+                                        screenSize: MediaQuery.of(context).size,
+                                      ),
+                                  ],
                                 ),
                               ),
                             ),

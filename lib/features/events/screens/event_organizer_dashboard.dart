@@ -7,7 +7,7 @@ import '../models/event_model.dart';
 import '../models/event_participant_model.dart';
 import '../controllers/event_controller.dart';
 import '../../../core/widgets/edge_to_edge_container.dart';
-
+import '../chat/screens/payment_analytics_screen.dart';
 
 class EventOrganizerDashboard extends ConsumerStatefulWidget {
   final String eventId;
@@ -180,6 +180,20 @@ class _EventOrganizerDashboardState extends ConsumerState<EventOrganizerDashboar
                           Icons.edit_outlined,
                           const Color(0xFF2196F3), // Blue
                           () => context.push('/events/${event.id}/edit'),
+                        ),
+                        Divider(height: 1, color: theme.dividerColor.withOpacity(0.1)),
+                        _buildActionTile(
+                          context,
+                          'Payment Analytics',
+                          'Track payment interactions and scans',
+                          Icons.analytics_outlined,
+                          const Color(0xFF9C27B0), // Purple
+                          () {
+                            context.go(
+                              '/events/${event.id}/payment-analytics',
+                              extra: event.title,
+                            );
+                          },
                         ),
                       ],
                     ),

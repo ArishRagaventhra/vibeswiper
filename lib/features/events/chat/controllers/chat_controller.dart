@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_message.dart';
 import '../models/chat_room.dart';
 import '../models/chat_participant.dart';
@@ -128,20 +129,73 @@ class ChatController extends StateNotifier<AsyncValue<void>> {
   ChatController(this._repository) : super(const AsyncValue.data(null));
 
   Future<ChatRoom?> getChatRoom(String eventId) async {
-    return _repository.getChatRoom(eventId);
+    try {
+      state = const AsyncValue.loading();
+      final chatRoom = await _repository.getChatRoom(eventId);
+      state = const AsyncValue.data(null);
+      return chatRoom;
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+      return null;
+    }
   }
 
   Future<void> initializeChatRoom(String eventId) async {
-    state = const AsyncValue.loading();
     try {
-      var chatRoom = await _repository.getChatRoom(eventId);
+      state = const AsyncValue.loading();
+      // First try to get an existing chat room
+      ChatRoom? chatRoom = await _repository.getChatRoom(eventId);
+      
+      // If no chat room exists, create one
       if (chatRoom == null) {
         chatRoom = await _repository.createChatRoom(eventId);
       }
+      
       state = const AsyncValue.data(null);
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
-      rethrow;
+    }
+  }
+
+  Future<bool> updatePaymentLink(String roomId, String paymentLink) async {
+    try {
+      state = const AsyncValue.loading();
+      final result = await _repository.updatePaymentLink(roomId, paymentLink);
+      state = const AsyncValue.data(null);
+      return result;
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+      return false;
+    }
+  }
+
+  Future<bool> removePaymentLink(String roomId) async {
+    try {
+      state = const AsyncValue.loading();
+      final result = await _repository.removePaymentLink(roomId);
+      state = const AsyncValue.data(null);
+      return result;
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+      return false;
+    }
+  }
+
+  Future<bool> isEventCreator(String eventId) async {
+    try {
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+      if (currentUserId == null) return false;
+      
+      final event = await Supabase.instance.client
+          .from('events')
+          .select('creator_id')
+          .eq('id', eventId)
+          .single();
+          
+      return event['creator_id'] == currentUserId;
+    } catch (e) {
+      debugPrint('Error checking if user is event creator: $e');
+      return false;
     }
   }
 

@@ -12,6 +12,6 @@ class RazorpayConfig {
   static String get keySecret => kReleaseMode ? _liveKeySecret : _testKeySecret;
 
   // Constants for event creation
-  static const double EVENT_CREATION_FEE = 99.0; // Rs. 99 - Platform fee for creating an event
+  static const double EVENT_CREATION_FEE = 499.0; // Rs. 499 - Platform fee for creating an event
   static const String CURRENCY = 'INR';
 }
