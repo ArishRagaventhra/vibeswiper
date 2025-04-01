@@ -39,8 +39,8 @@ android {
         applicationId = "com.packages.scompass"
         minSdkVersion flutter.minSdkVersion
         targetSdk = 34  // Target Android 14 for now
-        versionCode = 21
-        versionName = "1.0.3"
+        versionCode = 22
+        versionName = "1.0.4"
         multiDexEnabled true
         
         // Add memory optimization flags

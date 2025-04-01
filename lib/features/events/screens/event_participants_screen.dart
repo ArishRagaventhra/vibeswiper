@@ -5,6 +5,7 @@ import '../models/event_participant_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/widgets/app_bar.dart';
 import '../../../shared/widgets/avatar.dart'; // Import Avatar widget
+import '../../../shared/widgets/skeleton_loader.dart'; // Import skeleton loader
 
 class EventParticipantsScreen extends ConsumerStatefulWidget {
   final String eventId;
@@ -22,33 +23,27 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
   final TextEditingController _searchController = TextEditingController();
   ParticipantRole? _selectedRole;
   List<EventParticipant> _filteredParticipants = [];
-  bool _isInitialized = false;
-
+  
+  // Remove the _isInitialized flag since we'll use the provider's state directly
+  
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    
+    // Trigger participant loading immediately, but don't wait for it
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeData();
-    });
-  }
-
-  void _initializeData() async {
-    await ref.read(eventParticipantControllerProvider.notifier).loadParticipants(widget.eventId);
-    _filterParticipants();
-    setState(() {
-      _isInitialized = true;
+      ref.read(eventParticipantControllerProvider.notifier).loadParticipants(widget.eventId);
     });
   }
 
   void _onSearchChanged() {
-    if (_isInitialized) {
-      _filterParticipants();
-    }
+    // Filter participants whenever search text changes
+    _filterParticipants();
   }
 
   void _filterParticipants() {
-    final participantsAsync = ref.watch(eventParticipantControllerProvider);
+    final participantsAsync = ref.read(eventParticipantControllerProvider);
     
     if (!participantsAsync.hasValue) {
       setState(() {
@@ -80,6 +75,7 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
   }
 
   bool _canManageParticipant(EventParticipant participant) {
+    // Rest of the method remains unchanged
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return false;
 
@@ -493,7 +489,7 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
     // Watch participants data
     final participantsAsync = ref.watch(eventParticipantControllerProvider);
     
-    // Listen for changes
+    // Use this to detect changes and filter participants
     ref.listen(eventParticipantControllerProvider, (previous, next) {
       if (next.hasValue && mounted) {
         _filterParticipants();
@@ -557,11 +553,16 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
                   backgroundColor: isDark 
                       ? Colors.white.withOpacity(0.05)
                       : Colors.white,
-                  selectedColor: isDark ? Colors.white : Colors.black,
+                  selectedColor: isDark 
+                      ? Colors.white
+                      : Colors.black,
+                  checkmarkColor: isDark 
+                      ? Colors.black
+                      : Colors.white,
                   labelStyle: TextStyle(
                     color: _selectedRole == null
-                        ? (isDark ? Colors.black : Colors.white)
-                        : (isDark ? Colors.white : Colors.black),
+                        ? (isDark ? Colors.black : Colors.white) // Selected text color
+                        : (isDark ? Colors.white : Colors.black), // Unselected text color
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
@@ -589,11 +590,16 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
                       backgroundColor: isDark 
                           ? Colors.white.withOpacity(0.05)
                           : Colors.white,
-                      selectedColor: isDark ? Colors.white : Colors.black,
+                      selectedColor: isDark 
+                          ? Colors.white
+                          : Colors.black,
+                      checkmarkColor: isDark 
+                          ? Colors.black
+                          : Colors.white,
                       labelStyle: TextStyle(
                         color: isSelected
-                            ? (isDark ? Colors.black : Colors.white)
-                            : (isDark ? Colors.white : Colors.black),
+                            ? (isDark ? Colors.black : Colors.white) // Selected text color
+                            : (isDark ? Colors.white : Colors.black), // Unselected text color
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
@@ -612,23 +618,19 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
           
           const SizedBox(height: 8),
           
-          // Participant list
+          // Participant list with optimized loading
           Expanded(
             child: participantsAsync.when(
               data: (_) => _filteredParticipants.isEmpty
                   ? _buildEmptyState(context, hasParticipants: participantsAsync.value!.isNotEmpty)
                   : ListView.builder(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.only(bottom: 16),
                       itemCount: _filteredParticipants.length,
                       itemBuilder: (context, index) {
                         return _buildParticipantCard(_filteredParticipants[index]);
                       },
                     ),
-              loading: () => Center(
-                child: CircularProgressIndicator(
-                  color: isDark ? Colors.white : Colors.black,
-                ),
-              ),
+              loading: () => _buildLoadingState(),
               error: (error, stack) => Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -656,7 +658,10 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: _initializeData,
+                      onPressed: () {
+                        ref.read(eventParticipantControllerProvider.notifier)
+                          .loadParticipants(widget.eventId);
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isDark ? Colors.white : Colors.black,
                         foregroundColor: isDark ? Colors.black : Colors.white,
@@ -670,6 +675,88 @@ class _EventParticipantsScreenState extends ConsumerState<EventParticipantsScree
           ),
         ],
       ),
+    );
+  }
+
+  // New method - builds skeleton loading UI
+  Widget _buildLoadingState() {
+    return ListView.builder(
+      itemCount: 5, // Show 5 skeleton items
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemBuilder: (context, index) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withOpacity(0.05)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white.withOpacity(0.1)
+                  : Colors.black.withOpacity(0.05),
+            ),
+          ),
+          child: Row(
+            children: [
+              // Avatar skeleton
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.grey.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Name skeleton
+                    Container(
+                      width: double.infinity,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.grey.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Username skeleton
+                    Container(
+                      width: 120,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withOpacity(0.1)
+                            : Colors.grey.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Role badge skeleton
+              Container(
+                width: 60,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.grey.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

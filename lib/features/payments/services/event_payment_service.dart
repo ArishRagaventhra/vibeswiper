@@ -23,6 +23,7 @@ class EventPaymentService {
     required String userEmail,
     required String userContact,
     BuildContext? context,
+    double? vibePrice, 
   }) async {
     try {
       await _ref.read(paymentProvider.notifier).initiateEventPayment(
@@ -30,6 +31,7 @@ class EventPaymentService {
             eventName: eventName,
             userEmail: userEmail,
             userContact: userContact, 
+            vibePrice: vibePrice, 
             onPaymentFinalized: (Payment payment) {
               // If payment is successful and we have context, navigate to events list
               if (payment.isSuccessful && context != null) {
@@ -51,6 +53,7 @@ class EventPaymentService {
     required String eventName,
     required String userEmail,
     required String userContact,
+    double? vibePrice, 
     // Add other event creation parameters as needed
   }) async {
     try {
@@ -63,6 +66,7 @@ class EventPaymentService {
         eventName: eventName,
         userEmail: userEmail,
         userContact: userContact,
+        vibePrice: vibePrice, 
       );
 
       // Note: The event will be published after successful payment

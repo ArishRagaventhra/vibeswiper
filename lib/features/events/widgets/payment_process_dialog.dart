@@ -7,9 +7,11 @@ import '../../../config/razorpay_config.dart';
 
 class PaymentProcessDialog extends ConsumerStatefulWidget {
   final VoidCallback onPaymentComplete;
+  final double? amount; // Add amount parameter to show dynamic payment amount
 
   const PaymentProcessDialog({
     required this.onPaymentComplete,
+    this.amount, // Pass the payment amount (vibePrice or platform fee)
     super.key,
   });
 
@@ -70,6 +72,8 @@ class _PaymentProcessDialogState extends ConsumerState<PaymentProcessDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Get the amount to show - either the passed amount or default to platform listing fee
+    final displayAmount = widget.amount?.toInt() ?? RazorpayConfig.PLATFORM_LISTING_FEE.toInt();
 
     // Set up our listener for payment status updates
     ref.listen<AsyncValue<List<Payment>>>(
@@ -131,7 +135,7 @@ class _PaymentProcessDialogState extends ConsumerState<PaymentProcessDialog> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Please complete the payment of Rs. ${RazorpayConfig.EVENT_CREATION_FEE.toInt()} in the Razorpay window.',
+                'Please complete the payment of Rs. $displayAmount in the Razorpay window.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium,
               ),

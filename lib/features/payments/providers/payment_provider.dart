@@ -73,10 +73,15 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
     required String userEmail,
     required String userContact,
     required Function(Payment payment) onPaymentFinalized,
+    double? vibePrice,
   }) async {
     try {
       _pendingEventId = eventId; // Store eventId for use after payment
       debugPrint('Initiating payment for event: $eventId');
+      
+      // Calculate payment amount based on vibe price
+      final paymentAmount = RazorpayConfig.calculatePaymentAmount(vibePrice);
+      debugPrint('Payment amount calculated: $paymentAmount');
       
       // Create a pending payment record BEFORE opening the Razorpay UI
       // This ensures we have a record regardless of what happens with Razorpay
@@ -86,7 +91,7 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
         eventId: eventId,
         razorpayPaymentId: 'pending_${DateTime.now().millisecondsSinceEpoch}',
         razorpayOrderId: _generateOrderId(),
-        amount: RazorpayConfig.EVENT_CREATION_FEE,
+        amount: paymentAmount,
         status: 'pending'
       );
       
@@ -102,9 +107,9 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
 
       await _paymentService.initializePayment(
         keyId: RazorpayConfig.keyId,
-        amount: RazorpayConfig.EVENT_CREATION_FEE,
+        amount: paymentAmount,
         currency: RazorpayConfig.CURRENCY,
-        description: 'Platform fee for event: $eventName',
+        description: 'Payment for event: $eventName',
         userEmail: userEmail,
         userContact: userContact,
         onSuccess: (paymentId, orderId) async {
@@ -192,7 +197,7 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
               eventId: _pendingEventId!,
               razorpayPaymentId: paymentId,
               razorpayOrderId: orderId ?? _generateOrderId(),
-              amount: RazorpayConfig.EVENT_CREATION_FEE,
+              amount: paymentAmount,
               status: 'success'
             );
 
@@ -222,7 +227,7 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
             eventId: _pendingEventId!,
             razorpayPaymentId: _pendingPaymentId!,
             razorpayOrderId: '',
-            amount: RazorpayConfig.EVENT_CREATION_FEE,
+            amount: paymentAmount,
             status: 'cancelled'
           );
           

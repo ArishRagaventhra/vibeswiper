@@ -556,43 +556,51 @@ class _EventOrganizerDashboardState extends ConsumerState<EventOrganizerDashboar
               navigator.pop();
               
               try {
-                // Show loading indicator
-                scaffoldMessenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('Deleting event...'),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
-
-                await ref
-                    .read(eventControllerProvider.notifier)
-                    .deleteEvent(widget.eventId, reason);
-
-                // Immediately invalidate the created events list to update UI
-                ref.invalidate(createdEventsProvider);
-
-                if (!mounted) return;
-
-                // Clear previous snackbars and show success
+                // Show loading state
                 scaffoldMessenger
                   ..clearSnackBars()
                   ..showSnackBar(
                     const SnackBar(
                       content: Text(
-                        'Event deleted successfully. It will be permanently removed after 7 days.',
+                        'Deleting event...',
                         style: TextStyle(color: Colors.white),
                       ),
-                      backgroundColor: Colors.green,
-                      duration: Duration(seconds: 2),
+                      backgroundColor: Colors.orange,
+                      duration: Duration(seconds: 1),
                     ),
                   );
 
-                // Navigate back after a short delay
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  if (mounted) {
-                    context.go('/events');
-                  }
-                });
+                // Extract GoRouter before any async operations
+                final router = GoRouter.of(context);
+                
+                // Delete the event using the correct provider and method
+                await ref
+                    .read(eventControllerProvider.notifier)
+                    .deleteEvent(widget.eventId, reason);
+                
+                // Immediately invalidate the created events list to update UI
+                ref.invalidate(createdEventsProvider);
+                
+                // Only show success message if still mounted
+                if (mounted) {
+                  scaffoldMessenger
+                    ..clearSnackBars()
+                    ..showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Event deleted successfully. It will be permanently removed after 7 days.',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                }
+                
+                // Navigate using the stored GoRouter reference
+                // This avoids the deactivated widget issue
+                router.go('/events');
+                
               } catch (e) {
                 if (!mounted) return;
                 scaffoldMessenger.showSnackBar(

@@ -273,13 +273,14 @@ class EventCreationService {
         }
       });
       
-      // Start the payment
+      // Start the payment - Pass the vibePrice to the payment service
       await paymentService.initiateEventCreationPayment(
         eventId: tempEventId,
         eventName: eventName,
         userEmail: userEmail,
         userContact: userContact,
         context: context,
+        vibePrice: vibePrice, // Pass the vibe price to the payment service
       );
       
       // Set up a listener for payment status updates

@@ -79,7 +79,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     _accessCodeController.addListener(_validateCurrentStep);
     _maxParticipantsController.addListener(_validateCurrentStep);
 
-    // Add a post-frame callback to set up a listener for payment completion
+    // Add a post-frame callback to set up navigation function
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Register a navigation function that can be called from anywhere
       ref.read(globalNavigationFunctionProvider.notifier).state = () {
@@ -90,18 +90,6 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         }
         return false;
       };
-    
-      // This will navigate automatically after successful payment
-      // including delayed payment cases
-      ref.listen(navigateToEventsAfterPaymentProvider, (prev, next) {
-        if (next == true && mounted) {
-          // Navigate to events list
-          debugPrint('navigateToEventsAfterPaymentProvider triggered - going to /events');
-          context.go('/events');
-          // Reset the flag
-          ref.read(navigateToEventsAfterPaymentProvider.notifier).state = false;
-        }
-      });
     });
   }
 
@@ -519,7 +507,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'A standard platform fee of just ₹99 will be charged for listing paid events to reach a wider audience ,and start earning',
+                                          'For listing paid events, you will be charged the amount you set in the Vibe Price field. Free events can be listed at no cost.',
                                           style: theme.textTheme.bodyMedium?.copyWith(
                                             color: theme.colorScheme.primary,
                                             height: 1.4,
@@ -583,7 +571,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Vibe price must be less than or equal to actual price',
+                                  'Vibe price is the amount you\'ll pay to list this event (free for free events)',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                                 const SizedBox(height: 16),
@@ -659,7 +647,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'For listing paid events, a standard platform fee of ₹99 will be charged. Free events can be listed at no cost.',
+                                          'The amount you set in the Vibe Price field is what you\'ll pay to list this event. Free events can be listed at no cost.',
                                           style: theme.textTheme.bodyMedium?.copyWith(
                                             color: theme.colorScheme.primary,
                                             height: 1.4,
@@ -723,7 +711,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Vibe price must be less than or equal to actual price',
+                                  'Vibe price is the amount you\'ll pay to list this event (free for free events)',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                                 const SizedBox(height: 16),
@@ -1686,8 +1674,18 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    ref.listen(navigateToEventsAfterPaymentProvider, (prev, next) {
+      if (next == true && mounted) {
+        // Navigate to events list
+        debugPrint('navigateToEventsAfterPaymentProvider triggered - going to /events');
+        context.go('/events');
+        // Reset the flag
+        ref.read(navigateToEventsAfterPaymentProvider.notifier).state = false;
+      }
+    });
+
     final wizardState = ref.watch(eventWizardProvider);
+    final theme = Theme.of(context);
 
     return EdgeToEdgeContainer(
       statusBarColor: Theme.of(context).colorScheme.background,
