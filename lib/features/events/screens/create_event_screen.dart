@@ -507,7 +507,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'For listing paid events, you will be charged the amount you set in the Vibe Price field. Free events can be listed at no cost.',
+                                          'To list your event, you’ll simply cover the cost of one attendee’s ticket—no extra fees or hidden charges. This ensures a smooth and fair listing process for all organizers. Plus, free events can be listed at no charge!',
                                           style: theme.textTheme.bodyMedium?.copyWith(
                                             color: theme.colorScheme.primary,
                                             height: 1.4,
@@ -571,7 +571,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Vibe price is the amount you\'ll pay to list this event (free for free events)',
+                                  'The Vibe Price is the offered ticket price for attendees and cannot be higher than the actual event price',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                                 const SizedBox(height: 16),
@@ -647,7 +647,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'The amount you set in the Vibe Price field is what you\'ll pay to list this event. Free events can be listed at no cost.',
+                                          'To list your event, you’ll simply cover the cost of one attendee’s ticket—no extra fees or hidden charges. This ensures a smooth and fair listing process for all organizers. Plus, free events can be listed at no charge!.',
                                           style: theme.textTheme.bodyMedium?.copyWith(
                                             color: theme.colorScheme.primary,
                                             height: 1.4,
@@ -711,7 +711,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Vibe price is the amount you\'ll pay to list this event (free for free events)',
+                                  'The Vibe Price is the offered ticket price for attendees and cannot be higher than the actual event price',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                                 const SizedBox(height: 16),
@@ -1091,7 +1091,16 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         });
       }
     } else {
-      // Show error message
+      setState(() {
+        // Force UI to refresh and show the validation error
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_getErrorMessageForCurrentStep()),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -1729,26 +1738,6 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (!wizardState.isCurrentStepValid && wizardState.currentStep == EventCreationStep.requirements)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 16.0),
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.errorContainer.withOpacity(0.7),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    'Please complete all required fields',
-                                    style: TextStyle(
-                                      color: theme.colorScheme.onErrorContainer,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
                             Row(
                               children: [
                                 if (wizardState.canGoToPreviousStep)
