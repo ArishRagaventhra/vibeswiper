@@ -109,7 +109,7 @@ class PaymentNotifier extends StateNotifier<AsyncValue<List<Payment>>> {
         keyId: RazorpayConfig.keyId,
         amount: paymentAmount,
         currency: RazorpayConfig.CURRENCY,
-        description: 'Payment for event: $eventName',
+        description: RazorpayConfig.getPaymentDescription(eventName),
         userEmail: userEmail,
         userContact: userContact,
         onSuccess: (paymentId, orderId) async {

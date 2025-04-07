@@ -12,17 +12,19 @@ class RazorpayConfig {
   static String get keySecret => kReleaseMode ? _liveKeySecret : _testKeySecret;
 
   // Constants for payment
-  static const double PLATFORM_LISTING_FEE = 0.0; // Free events have no fee
+  static const double PLATFORM_LISTING_FEE = 499.0; // Standard platform fee for listing paid events (₹499)
   static const String CURRENCY = 'INR';
   
-  // For backward compatibility - keeping this constant but it's no longer used in new code
-  static const double EVENT_CREATION_FEE = 499.0; // Rs. 499 - Legacy constant (deprecated)
-  
-  // Method to calculate the payment amount based on vibe price
+  // Method to calculate the payment amount for event creation
   static double calculatePaymentAmount(double? vibePrice) {
     if (vibePrice == null || vibePrice <= 0) {
       return 0.0; // Free events have no fee
     }
-    return vibePrice; // Use the vibe price for paid events
+    return PLATFORM_LISTING_FEE; // Use the standard platform fee (₹499) for all paid events
+  }
+  
+  // Payment description text
+  static String getPaymentDescription(String eventName) {
+    return 'Platform fee for listing paid event: $eventName';
   }
 }

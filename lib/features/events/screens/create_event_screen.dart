@@ -507,7 +507,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'To list your event, you’ll simply cover the cost of one attendee’s ticket—no extra fees or hidden charges. This ensures a smooth and fair listing process for all organizers. Plus, free events can be listed at no charge!',
+                                          'To list your paid event, youll simply pay a standard platform fee of ₹499—no percentage cuts or hidden charges. This ensures a smooth and fair listing process for all organizers. Free events can be listed at no charge!',
                                           style: theme.textTheme.bodyMedium?.copyWith(
                                             color: theme.colorScheme.primary,
                                             height: 1.4,

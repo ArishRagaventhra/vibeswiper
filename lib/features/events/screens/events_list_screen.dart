@@ -331,34 +331,39 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                               children: [
                                 EventCardStack(
                                   events: filteredEvents,
-                                  onSwipe: (event, isRight) async {
+                                  onSwipe: (event, isRight) {
                                     if (isRight) {
-                                      try {
-                                        await ref.read(favoriteEventsProvider.notifier).favoriteEvent(event.id);
+                                      // Capture scaffold messenger before async operation
+                                      final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                      final eventTitle = event.title;
+                                      // Add to favorites
+                                      ref.read(favoriteEventsProvider.notifier).favoriteEvent(event.id).then((_) {
+                                        // Show success snackbar if still mounted
                                         if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          scaffoldMessenger.showSnackBar(
                                             SnackBar(
-                                              content: Text('Added ${event.title} to favorites'),
+                                              content: Text('Added $eventTitle to favorites'),
                                               action: SnackBarAction(
                                                 label: 'UNDO',
                                                 onPressed: () {
                                                   ref.read(favoriteEventsProvider.notifier).unfavoriteEvent(event.id);
                                                 },
                                               ),
-                                              duration: const Duration(seconds: 2),
+                                              duration: const Duration(seconds: 3),
                                             ),
                                           );
                                         }
-                                      } catch (e) {
+                                      }).catchError((e) {
+                                        // Show error snackbar if still mounted
                                         if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          scaffoldMessenger.showSnackBar(
                                             SnackBar(
                                               content: Text('Failed to favorite event: ${e.toString()}'),
                                               backgroundColor: theme.colorScheme.error,
                                             ),
                                           );
                                         }
-                                      }
+                                      });
                                     }
                                   },
                                   onTap: (event) => context.goNamed('event-details', pathParameters: {'eventId': event.id}),
@@ -391,34 +396,39 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                                   children: [
                                     EventCardStack(
                                       events: filteredEvents,
-                                      onSwipe: (event, isRight) async {
+                                      onSwipe: (event, isRight) {
                                         if (isRight) {
-                                          try {
-                                            await ref.read(favoriteEventsProvider.notifier).favoriteEvent(event.id);
+                                          // Capture scaffold messenger before async operation
+                                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                          final eventTitle = event.title;
+                                          // Add to favorites
+                                          ref.read(favoriteEventsProvider.notifier).favoriteEvent(event.id).then((_) {
+                                            // Show success snackbar if still mounted
                                             if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
+                                              scaffoldMessenger.showSnackBar(
                                                 SnackBar(
-                                                  content: Text('Added ${event.title} to favorites'),
+                                                  content: Text('Added $eventTitle to favorites'),
                                                   action: SnackBarAction(
                                                     label: 'UNDO',
                                                     onPressed: () {
                                                       ref.read(favoriteEventsProvider.notifier).unfavoriteEvent(event.id);
                                                     },
                                                   ),
-                                                  duration: const Duration(seconds: 2),
+                                                  duration: const Duration(seconds: 3),
                                                 ),
                                               );
                                             }
-                                          } catch (e) {
+                                          }).catchError((e) {
+                                            // Show error snackbar if still mounted
                                             if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
+                                              scaffoldMessenger.showSnackBar(
                                                 SnackBar(
                                                   content: Text('Failed to favorite event: ${e.toString()}'),
                                                   backgroundColor: theme.colorScheme.error,
                                                 ),
                                               );
                                             }
-                                          }
+                                          });
                                         }
                                       },
                                       onTap: (event) => context.goNamed('event-details', pathParameters: {'eventId': event.id}),
