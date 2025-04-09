@@ -23,6 +23,8 @@ import '../widgets/swipe_instructions_overlay.dart';
 // import '../widgets/event_card_ad.dart'; // Ad functionality temporarily disabled
 import 'dart:async';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:url_launcher/url_launcher.dart';
 
 class EventsListScreen extends ConsumerStatefulWidget {
   const EventsListScreen({super.key});
@@ -626,6 +628,131 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                                       ),
                                     ),
                                   ),
+                                  
+                                  // Google Play Store Button (Web Only)
+                                  if (kIsWeb)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 16.0),
+                                      child: Stack(
+                                        alignment: Alignment.centerRight,
+                                        children: [
+                                          Card(
+                                            elevation: 4,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: InkWell(
+                                              onTap: () async {
+                                                final url = Uri.parse('https://play.google.com/store/apps/details?id=com.packages.scompass&pcampaignid=web_share');
+                                                if (await canLaunchUrl(url)) {
+                                                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                                                }
+                                              },
+                                              borderRadius: BorderRadius.circular(10),
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  borderRadius: BorderRadius.circular(10),
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                    colors: [AppTheme.primaryGradientStart, AppTheme.primaryGradientEnd],
+                                                    stops: const [0.3, 1.0],
+                                                  ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: theme.shadowColor.withOpacity(0.25),
+                                                      blurRadius: 12,
+                                                      spreadRadius: 1,
+                                                      offset: const Offset(0, 4),
+                                                    ),
+                                                  ],
+                                                ),
+                                                padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 20.0),
+                                                child: Row(
+                                                  children: [
+                                                    // Larger logo with shine effect
+                                                    Container(
+                                                      height: 38,
+                                                      width: 38,
+                                                      padding: const EdgeInsets.all(2),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white.withOpacity(0.15),
+                                                        borderRadius: BorderRadius.circular(10),
+                                                      ),
+                                                      child: SvgPicture.asset(
+                                                        'assets/app_icon/vibeswiper.svg',
+                                                        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 16),
+                                                    // Text content with adjusted alignment
+                                                    Expanded(
+                                                      child: Column(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          Text(
+                                                            'GET IT ON',
+                                                            style: theme.textTheme.bodySmall?.copyWith(
+                                                              color: Colors.white.withOpacity(0.9),
+                                                              letterSpacing: 0.5,
+                                                              fontWeight: FontWeight.w500,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(height: 2),
+                                                          Text(
+                                                            'Google Play',
+                                                            style: theme.textTheme.titleMedium?.copyWith(
+                                                              fontWeight: FontWeight.bold,
+                                                              color: Colors.white,
+                                                              fontSize: 18,
+                                                              letterSpacing: 0.2,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    // Download icon
+                                                    Container(
+                                                      width: 36,
+                                                      height: 36,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white.withOpacity(0.2),
+                                                        borderRadius: BorderRadius.circular(12),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.download_rounded,
+                                                        color: Colors.white,
+                                                        size: 22,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          // Add subtle glow effect at the right edge
+                                          Positioned(
+                                            right: 0,
+                                            child: Container(
+                                              height: 48,
+                                              width: 24,
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.centerRight,
+                                                  end: Alignment.centerLeft,
+                                                  colors: [
+                                                    AppTheme.primaryGradientEnd.withOpacity(0.4),
+                                                    AppTheme.primaryGradientEnd.withOpacity(0.0),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
