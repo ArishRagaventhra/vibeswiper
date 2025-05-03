@@ -1,0 +1,13 @@
+create table public.ticket_check_ins (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  booking_id uuid not null,
+  event_id uuid not null,
+  checked_in_at timestamp with time zone null default now(),
+  checked_in_by uuid null,
+  check_in_method character varying(20) null default 'qr_scan'::character varying,
+  notes text null,
+  constraint ticket_check_ins_pkey primary key (id),
+  constraint ticket_check_ins_booking_id_key unique (booking_id),
+  constraint fk_booking foreign KEY (booking_id) references ticket_bookings (id),
+  constraint fk_event foreign KEY (event_id) references events (id)
+) TABLESPACE pg_default;

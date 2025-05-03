@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.scompass_07">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.packages.scompass">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -9,6 +9,10 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <!-- FCM permissions -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     
     <queries>
         <!-- For sharing text content -->
@@ -79,9 +83,40 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Disable Flutter's built-in deep link handler since we're using app_links package -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            
+            <!-- Deep linking intent filter -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Accepts URIs that begin with "vibeswiper://" -->
+                <data android:scheme="vibeswiper" />
+            </intent-filter>
+            
+            <!-- Universal Links / App Links with enhanced path patterns -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Accepts URIs that begin with "https://vibeswiper.scompasshub.com" -->
+                <data android:scheme="https" android:host="vibeswiper.scompasshub.com" />
+                <!-- Add http scheme support for backward compatibility -->
+                <data android:scheme="http" android:host="vibeswiper.scompasshub.com" />
+                
+                <!-- Specific common paths to ensure they're captured -->
+                <data android:pathPattern="/events/.*" />
+                <data android:pathPattern="/booking-history" />
+                <data android:pathPattern="/booking/.*" />
+                <data android:pathPattern="/profile/.*" />
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
@@ -89,5 +124,19 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+            
+        <!-- Firebase Messaging Service -->
+        <service
+            android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        
+        <!-- For Firebase notifications received when app is in background but not terminated -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="high_importance_channel" />
     </application>
 </manifest>

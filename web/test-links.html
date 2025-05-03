@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibeswiper App Links Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #9333ea;
+        }
+        .link-container {
+            margin: 25px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .link-container h2 {
+            margin-top: 0;
+        }
+        a {
+            display: inline-block;
+            background-color: #9333ea;
+            color: white;
+            padding: 10px 20px;
+            margin: 10px 0;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        a:hover {
+            background-color: #7e22ce;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Vibeswiper App Links Test Page</h1>
+    <p>Click on any of the links below to test if your app links configuration is working correctly.</p>
+    <p>If app links are configured properly, clicking these links should open your Vibeswiper app directly instead of staying in the browser.</p>
+    
+    <div class="link-container">
+        <h2>Events</h2>
+        <a href="https://vibeswiper.scompasshub.com/events/123">Open Event 123</a>
+        <a href="https://vibeswiper.scompasshub.com/events/456">Open Event 456</a>
+    </div>
+    
+    <div class="link-container">
+        <h2>User Profiles</h2>
+        <a href="https://vibeswiper.scompasshub.com/profile/user123">Open User Profile</a>
+    </div>
+    
+    <div class="link-container">
+        <h2>Other Screens</h2>
+        <a href="https://vibeswiper.scompasshub.com/notifications">Open Notifications</a>
+        <a href="https://vibeswiper.scompasshub.com/settings">Open Settings</a>
+    </div>
+    
+    <div class="link-container">
+        <h2>Testing Tips</h2>
+        <ul>
+            <li>Make sure you have installed the app from a signed APK, not via Flutter run</li>
+            <li>Try opening these links from different apps (email, messages, notes)</li>
+            <li>If links don't work, verify your <code>assetlinks.json</code> is properly hosted</li>
+            <li>Check logcat for Android or Console for iOS to see any errors</li>
+        </ul>
+    </div>
+</body>
+</html>

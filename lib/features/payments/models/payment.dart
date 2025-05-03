@@ -83,4 +83,33 @@ class Payment {
 
   @override
   String toString() => 'Payment{id: $id, status: $status}';
+
+  // Add copyWith method to allow updating payment properties
+  Payment copyWith({
+    String? id,
+    String? userId,
+    String? eventId,
+    double? amount,
+    String? razorpayPaymentId,
+    String? razorpayOrderId,
+    String? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? errorMessage,
+    Map<String, dynamic>? paymentDetails,
+  }) {
+    return Payment(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      eventId: eventId ?? this.eventId,
+      amount: amount ?? this.amount,
+      razorpayPaymentId: razorpayPaymentId ?? this.razorpayPaymentId,
+      razorpayOrderId: razorpayOrderId ?? this.razorpayOrderId,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      errorMessage: errorMessage ?? this.errorMessage,
+      paymentDetails: paymentDetails ?? this.paymentDetails,
+    );
+  }
 }

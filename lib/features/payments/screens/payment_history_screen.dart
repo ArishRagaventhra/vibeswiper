@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../../config/theme.dart';
+import '../../../config/routes.dart';
 import '../providers/payment_provider.dart';
 import '../models/payment.dart';
 import '../../../shared/widgets/empty_state.dart';
@@ -16,6 +18,27 @@ class PaymentHistoryScreen extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
     final appBarColor = isDark ? AppTheme.darkBackgroundColor : Colors.white;
     final paymentsAsync = ref.watch(paymentProvider);
+    
+    // For testing/debugging, log all payment amounts
+    paymentsAsync.whenData((payments) {
+      for (final payment in payments) {
+        debugPrint('Payment ID: ${payment.id}, Amount: ${payment.amount}, Status: ${payment.status}');
+        debugPrint('Payment details: ${payment.paymentDetails}');
+      }
+    });
+    
+    // Filter to only show event listing fees and not ticket bookings
+    final filteredPaymentsAsync = paymentsAsync.whenData((payments) {
+      return payments.where((payment) {
+        // Platform listing fee is exactly ₹1.0 or has specific metadata
+        return payment.amount == 1.0 || // Standard platform fee
+               payment.amount == 1.00 || // Handling decimal precision issues
+               payment.amount == 499.0 || // Old platform fee amount
+               (payment.paymentDetails != null && 
+                 (payment.paymentDetails!['payment_type'] == 'listing_fee' || 
+                  payment.paymentDetails!['is_listing_fee'] == true));
+      }).toList();
+    });
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -30,6 +53,14 @@ class PaymentHistoryScreen extends ConsumerWidget {
         backgroundColor: appBarColor,
         foregroundColor: isDark ? Colors.white : Colors.black,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: isDark ? Colors.white : Colors.black,
+            size: 20,
+          ),
+          onPressed: () => context.go(AppRoutes.account),
+        ),
         iconTheme: IconThemeData(
           color: isDark ? Colors.white : Colors.black,
         ),
@@ -38,7 +69,7 @@ class PaymentHistoryScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.refresh(paymentProvider);
         },
-        child: paymentsAsync.when(
+        child: filteredPaymentsAsync.when(
           loading: () => const LoadingWidget(),
           error: (error, stack) => Center(
             child: EmptyState(
@@ -53,8 +84,8 @@ class PaymentHistoryScreen extends ConsumerWidget {
               ? Center(
                   child: EmptyState(
                     icon: Icons.receipt_long_outlined,
-                    title: 'No Payments Yet',
-                    message: 'Your payment history will appear here',
+                    title: 'No Event Listing Payments',
+                    message: 'Payments for listing paid events will appear here',
                   ),
                 )
               : ListView.builder(
@@ -99,6 +130,22 @@ class PaymentHistoryItem extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Add a label to indicate this is a listing fee
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue[100],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Platform Listing Fee',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.blue[800],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

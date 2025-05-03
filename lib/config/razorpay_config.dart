@@ -12,7 +12,7 @@ class RazorpayConfig {
   static String get keySecret => kReleaseMode ? _liveKeySecret : _testKeySecret;
 
   // Constants for payment
-  static const double PLATFORM_LISTING_FEE = 499.0; // Standard platform fee for listing paid events (₹499)
+  static const double PLATFORM_LISTING_FEE = 01.0; // Standard platform fee for listing paid events (₹499)
   static const String CURRENCY = 'INR';
   
   // Method to calculate the payment amount for event creation

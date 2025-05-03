@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "YOUR_ACTUAL_TEAM_ID.com.packages.scompass",
+        "paths": ["*"]
+      }
+    ]
+  }
+}

@@ -1,11 +1,31 @@
-import 'package:flutter/material.dart';import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../config/theme.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../account/widgets/account_list_tile.dart';
 import '../../../config/routes.dart';
+
+// Provider for notification permission status
+final notificationPermissionProvider = FutureProvider<bool>((ref) async {
+  final status = await Permission.notification.status;
+  return status.isGranted;
+});
+
+// Provider for notification enabled state with persistence
+final notificationEnabledProvider = StateProvider<bool>((ref) {
+  // Default to true, but will be updated with actual permission status when available
+  return true;
+});
+
+// Provider for supabase client
+final supabaseProvider = Provider<SupabaseClient>((ref) {
+  return Supabase.instance.client;
+});
 
 
 
@@ -105,7 +125,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: foregroundColor,
             size: 20,
           ),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.go(AppRoutes.account),
         ),
       ),
       body: ListView(
@@ -138,14 +158,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: 'Privacy Policy',
                   subtitle: 'How we handle your data',
                   icon: Icons.privacy_tip_outlined,
-                  onTap: () => context.push(AppRoutes.privacyPolicy),
+                  onTap: () => context.go(AppRoutes.privacyPolicy),
                   useDivider: false,
                 ),
                 AccountListTile(
                   title: 'Terms & Conditions',
                   subtitle: 'Rules and guidelines',
                   icon: Icons.description_outlined,
-                  onTap: () => context.push(AppRoutes.termsConditions),
+                  onTap: () => context.go(AppRoutes.termsConditions),
                   useDivider: false,
                 ),
               ],
@@ -189,6 +209,154 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 }
               },
               useDivider: false,
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Notifications Section
+          _buildSectionHeader(
+            context,
+            'Notifications',
+            Icons.notifications_outlined,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Consumer(
+              builder: (context, ref, _) {
+                final notificationEnabled = ref.watch(notificationEnabledProvider);
+                
+                // Check current permission status
+                final permissionStatus = ref.watch(notificationPermissionProvider);
+                
+                return permissionStatus.when(
+                  data: (isGranted) {
+                    // Sync our state with actual permission
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (ref.read(notificationEnabledProvider) != isGranted) {
+                        ref.read(notificationEnabledProvider.notifier).state = isGranted;
+                      }
+                    });
+                    
+                    return SwitchListTile(
+                      title: const Text('Push Notifications'),
+                      subtitle: const Text('Receive updates about events and messages'),
+                      value: notificationEnabled,
+                      secondary: Icon(
+                        notificationEnabled 
+                            ? Icons.notifications_active
+                            : Icons.notifications_off_outlined,
+                        color: notificationEnabled
+                            ? theme.colorScheme.primary
+                            : theme.disabledColor,
+                      ),
+                      activeColor: theme.colorScheme.primary,
+                      onChanged: (value) async {
+                        if (value) {
+                          // If turning on, request permission
+                          final status = await Permission.notification.request();
+                          final granted = status.isGranted;
+                          
+                          // Update state based on actual permission result
+                          ref.read(notificationEnabledProvider.notifier).state = granted;
+                          
+                          // Refresh the permission provider
+                          ref.refresh(notificationPermissionProvider);
+                          
+                          // Show appropriate message
+                          if (mounted) {
+                            if (granted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Notifications enabled'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Permission denied. Please enable notifications in device settings.'),
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                              
+                              // Show dialog to guide user to settings
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Enable Notifications'),
+                                  content: const Text('To receive notifications, please enable them in your device settings.'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                        openAppSettings();
+                                      },
+                                      child: const Text('Open Settings'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          }
+                        } else {
+                          // If turning off, guide user to system settings
+                          if (mounted) {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Disable Notifications'),
+                                content: const Text('To disable notifications, you need to turn them off in your device settings.'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      openAppSettings();
+                                    },
+                                    child: const Text('Open Settings'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    );
+                  },
+                  loading: () => const ListTile(
+                    title: Text('Push Notifications'),
+                    subtitle: Text('Checking permission status...'),
+                    trailing: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                  error: (_, __) => ListTile(
+                    title: const Text('Push Notifications'),
+                    subtitle: const Text('Unable to determine status'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: () => ref.refresh(notificationPermissionProvider),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
 

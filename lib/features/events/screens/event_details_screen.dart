@@ -34,8 +34,16 @@ import '../widgets/access_code_bottom_sheet.dart';
 import '../widgets/event_action_dialog.dart';
 import '../widgets/event_join_requirements_dialog.dart';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
+import '../../../core/utils/responsive_layout.dart';
 import '../widgets/event_details_instructions_overlay.dart';
 import '../../../shared/widgets/avatar.dart';
+import '../widgets/event_about_section.dart';
+import '../widgets/event_location_section.dart';
+import '../widgets/event_visibility_section.dart';
+import '../widgets/event_datetime_section.dart';
+import '../widgets/event_participants_section.dart';
+import '../widgets/event_policy_section.dart';
+import '../../../config/routes.dart';
 
 class EventDetailsScreen extends ConsumerStatefulWidget {
   final String eventId;
@@ -59,6 +67,12 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
   // Variables to control Vibe Price reveal animation
   bool _vibePriceRevealed = false;
   final _vibePriceAnimationDuration = const Duration(milliseconds: 800);
+  
+  void _revealVibePrice() {
+    setState(() {
+      _vibePriceRevealed = true;
+    });
+  }
 
   @override
   void initState() {
@@ -136,9 +150,25 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
     final appBarColor = isDark ? AppTheme.darkBackgroundColor : Colors.white;
     final foregroundColor = isDark ? AppTheme.darkPrimaryTextColor : AppTheme.primaryTextColor;
     
+    // Determine screen size category for responsive design
+    final isLargeScreen = ResponsiveLayout.isDesktop(context);
+    final isMediumScreen = ResponsiveLayout.isTablet(context);
+    final isSmallScreen = ResponsiveLayout.isMobile(context);
+    final contentMaxWidth = ResponsiveLayout.getContentMaxWidth(context);
+    
     // Calculate responsive dimensions
-    final imageHeight = size.height * 0.45;
-    final imageWidth = size.width * 0.85;
+    final imageHeight = isLargeScreen 
+        ? size.height * 0.4 
+        : isMediumScreen 
+            ? size.height * 0.35 
+            : size.height * 0.45;
+    
+    // Reduced width for larger screens to make it less horizontally extensive
+    final imageWidth = isLargeScreen
+        ? size.width * 0.4 // Significantly reduced width for desktop
+        : isMediumScreen
+            ? size.width * 0.55 // Reduced width for tablet
+            : size.width * 0.85; // Keep mobile size the same
     
     return EdgeToEdgeContainer(
       statusBarColor: Colors.transparent,
@@ -228,26 +258,34 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                       ],
                     ),
                     
-                    // Enhanced Image Section with Parallax Effect
+                    // Enhanced Image Section with Parallax Effect and QR Code
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: size.width * 0.05,
-                          vertical: 16,
+                        padding: EdgeInsets.only(
+                          left: isLargeScreen || isMediumScreen ? size.width * 0.05 : size.width * 0.05,
+                          right: isLargeScreen || isMediumScreen ? size.width * 0.05 : size.width * 0.05,
+                          top: 16,
+                          bottom: 16,
                         ),
-                        child: Container(
-                          height: imageHeight,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(28),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.15),
-                                blurRadius: 15,
-                                offset: const Offset(0, 8),
+                        child: Row(  // Row with image and slightly offset QR code
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: isSmallScreen ? MainAxisAlignment.center : MainAxisAlignment.start,
+                          children: [
+                            // Event Image Container
+                            Container(
+                              height: imageHeight,
+                              width: imageWidth,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(28),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.15),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: ClipRRect(
+                              child: ClipRRect(
                             borderRadius: BorderRadius.circular(28),
                             child: Stack(
                               children: [
@@ -440,12 +478,71 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                       ),
                                     ),
                                   ),
+
                               ],
                             ),
                           ),
                         ),
-                      ),
+                        // QR Code Container - only visible on larger screens
+                        // Add a spacer to push the QR code to the right but not all the way
+                        if (isLargeScreen || isMediumScreen)
+                          Expanded(child: SizedBox()),
+                          
+                        // QR code container with slight offset from far right and download text
+                        if (isLargeScreen || isMediumScreen)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                margin: const EdgeInsets.only(right: 40),
+                                height: 240,
+                                width: 240,
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(18),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.12),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      // Track QR code interaction
+                                      debugPrint('Payment QR Code clicked');
+                                      // You can add analytics tracking for payment interactions here
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: Image.asset(
+                                        'assets/images/vibeqr.png',
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                margin: const EdgeInsets.only(top: 10, right: 40),
+                                child: Text(
+                                  'Download the app for a better experience',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
                     ),
+                  ),
+                ),
 
                     // Event Details
                     SliverToBoxAdapter(
@@ -466,13 +563,17 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                           ],
                         ),
                         child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: size.width * 0.06,
-                            vertical: 24,
+                          padding: EdgeInsets.only(
+                            left: isLargeScreen || isMediumScreen ? size.width * 0.05 : size.width * 0.06,
+                            right: size.width * 0.06,
+                            top: 24,
+                            bottom: 24,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                          child: isLargeScreen || isMediumScreen
+                            ? _buildLargerScreenLayout(theme, event, size, isLargeScreen, contentMaxWidth)
+                            : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                               // Event Title with Category Tag
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -491,285 +592,21 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                               
                               const SizedBox(height: 16),
                               
-                              // Redesigned Price Card - More compact for mobile
-                              Container(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                width: double.infinity,
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.sell_rounded,
-                                          color: theme.colorScheme.primary,
-                                          size: 18,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Event Pricing',
-                                          style: theme.textTheme.titleSmall?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: theme.colorScheme.onSurface,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    // Pricing details with improved layout
-                                    Row(
-                                      children: [
-                                        // Vibe Price (if available)
-                                        if (event.vibePrice != null) ...[
-                                          Expanded(
-                                            child: GestureDetector(
-                                              onTap: () {
-                                                setState(() {
-                                                  _vibePriceRevealed = true;
-                                                });
-                                              },
-                                              child: AnimatedContainer(
-                                                duration: _vibePriceAnimationDuration,
-                                                curve: Curves.elasticOut,
-                                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                                                decoration: BoxDecoration(
-                                                  gradient: const LinearGradient(
-                                                    begin: Alignment.topLeft,
-                                                    end: Alignment.bottomRight,
-                                                    colors: [
-                                                      AppTheme.primaryGradientStart,
-                                                      AppTheme.primaryGradientEnd,
-                                                    ],
-                                                  ),
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: AppTheme.primaryGradientEnd.withOpacity(0.3),
-                                                      blurRadius: 6,
-                                                      offset: const Offset(0, 3),
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                                  children: [
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                      decoration: BoxDecoration(
-                                                        color: Colors.white.withOpacity(0.2),
-                                                        borderRadius: BorderRadius.circular(8),
-                                                      ),
-                                                      child: Text(
-                                                        'VIBE PRICE',
-                                                        style: theme.textTheme.labelSmall?.copyWith(
-                                                          color: Colors.white,
-                                                          fontWeight: FontWeight.bold,
-                                                          letterSpacing: 0.8,
-                                                          fontSize: 10,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 6),
-                                                    AnimatedSwitcher(
-                                                      duration: _vibePriceAnimationDuration,
-                                                      switchInCurve: Curves.elasticOut,
-                                                      switchOutCurve: Curves.easeOut,
-                                                      transitionBuilder: (Widget child, Animation<double> animation) {
-                                                        final offsetAnimation = Tween<Offset>(
-                                                          begin: const Offset(0, -1),
-                                                          end: Offset.zero,
-                                                        ).animate(animation);
-                                                        
-                                                        final scaleAnimation = Tween<double>(
-                                                          begin: 0.5,
-                                                          end: 1.0,
-                                                        ).animate(animation);
-                                                        
-                                                        return SlideTransition(
-                                                          position: offsetAnimation,
-                                                          child: ScaleTransition(
-                                                            scale: scaleAnimation,
-                                                            child: FadeTransition(
-                                                              opacity: animation,
-                                                              child: child,
-                                                            ),
-                                                          ),
-                                                        );
-                                                      },
-                                                      child: _vibePriceRevealed
-                                                        ? Text(
-                                                            '${event.currency ?? 'USD'} ${(event.vibePrice ?? 0).toStringAsFixed(2)}',
-                                                            key: const ValueKey('price-revealed'),
-                                                            style: theme.textTheme.titleMedium?.copyWith(
-                                                              color: Colors.white,
-                                                              fontWeight: FontWeight.bold,
-                                                            ),
-                                                          )
-                                                        : Container(
-                                                            key: const ValueKey('price-hidden'),
-                                                            height: 24,
-                                                            width: 80,
-                                                            decoration: BoxDecoration(
-                                                              color: Colors.white.withOpacity(0.15),
-                                                              borderRadius: BorderRadius.circular(4),
-                                                            ),
-                                                            child: const Icon(
-                                                              Icons.card_giftcard,
-                                                              color: Colors.white,
-                                                              size: 18,
-                                                            ),
-                                                          ),
-                                                    ),
-                                                    if (_vibePriceRevealed && event.ticketPrice != null && event.ticketPrice! > 0) ...[
-                                                      AnimatedOpacity(
-                                                        duration: const Duration(milliseconds: 500),
-                                                        opacity: _vibePriceRevealed ? 1.0 : 0.0,
-                                                        child: Text(
-                                                          'You save ${event.currency ?? 'USD'} ${((event.ticketPrice ?? 0) - (event.vibePrice ?? 0)).toStringAsFixed(2)}',
-                                                          style: theme.textTheme.bodySmall?.copyWith(
-                                                            color: Colors.white.withOpacity(0.9),
-                                                            fontSize: 10,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                    if (!_vibePriceRevealed) ...[
-                                                      const SizedBox(height: 4),
-                                                      Text(
-                                                        'Tap to reveal',
-                                                        style: theme.textTheme.bodySmall?.copyWith(
-                                                          color: Colors.white.withOpacity(0.8),
-                                                          fontSize: 10,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                        // Regular Price
-                                        Expanded(
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                                            decoration: BoxDecoration(
-                                              color: theme.colorScheme.surface,
-                                              borderRadius: BorderRadius.circular(12),
-                                              border: Border.all(
-                                                color: theme.colorScheme.outline.withOpacity(0.2),
-                                              ),
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.center,
-                                              children: [
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                  decoration: BoxDecoration(
-                                                    color: theme.colorScheme.surfaceVariant,
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: Text(
-                                                    'REGULAR PRICE',
-                                                    style: theme.textTheme.labelSmall?.copyWith(
-                                                      color: theme.colorScheme.onSurfaceVariant,
-                                                      fontWeight: FontWeight.bold,
-                                                      letterSpacing: 0.8,
-                                                      fontSize: 10,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Text(
-                                                  (event.ticketPrice == null || event.ticketPrice == 0)
-                                                      ? 'FREE'
-                                                      : '${event.currency ?? 'USD'} ${(event.ticketPrice ?? 0).toStringAsFixed(2)}',
-                                                  style: theme.textTheme.titleMedium?.copyWith(
-                                                    color: (event.ticketPrice == null || event.ticketPrice == 0) 
-                                                        ? Colors.green
-                                                        : event.vibePrice != null 
-                                                            ? theme.colorScheme.onSurface.withOpacity(0.6)
-                                                            : theme.colorScheme.onSurface,
-                                                    fontWeight: FontWeight.bold,
-                                                    decoration: event.vibePrice != null
-                                                        ? TextDecoration.lineThrough
-                                                        : null,
-                                                  ),
-                                                ),
-                                                if (event.ticketPrice == null || event.ticketPrice == 0) ...[
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    'No ticket required',
-                                                    style: theme.textTheme.bodySmall?.copyWith(
-                                                      color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                                      fontSize: 10,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              
                               // About the Event Section
                               if (event.description != null && event.description!.isNotEmpty) ...[
                                 const SizedBox(height: 16),
-                                Container(
-                                  padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.surface,
-                                    borderRadius: BorderRadius.circular(24),
-                                    border: Border.all(
-                                      color: theme.colorScheme.outline.withOpacity(0.1),
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.03),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 5),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.description_outlined,
-                                            color: theme.colorScheme.primary,
-                                            size: 22,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            'About This Event',
-                                            style: theme.textTheme.titleMedium?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        event.description!,
-                                        style: theme.textTheme.bodyMedium,
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                EventAboutSection(description: event.description!),
                               ],
                               
                               // Add more space between About Event and Location sections
                               const SizedBox(height: 32),
                               
-                              // Event Details Cards
+                              // Event Details - Using separate cards for each section
+                              _buildEventInfoCards(theme, event),
+                              
+                              // Policies & Terms Section Card
                               Container(
-                                padding: const EdgeInsets.all(20),
+                                margin: const EdgeInsets.only(bottom: 16),
                                 decoration: BoxDecoration(
                                   color: theme.colorScheme.surface,
                                   borderRadius: BorderRadius.circular(24),
@@ -784,388 +621,13 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                     ),
                                   ],
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Location & Visibility Section
-                                    const SizedBox(height: 24),
-                                    Container(
-                                      padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(
-                                        color: theme.colorScheme.surface,
-                                        borderRadius: BorderRadius.circular(24),
-                                        border: Border.all(
-                                          color: theme.colorScheme.outline.withOpacity(0.1),
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.03),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 5),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          // Location Section
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.location_on_outlined,
-                                                color: theme.colorScheme.primary,
-                                                size: 22,
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      'Location',
-                                                      style: theme.textTheme.titleMedium?.copyWith(
-                                                        fontWeight: FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    Text(
-                                                      event.location ?? 'No location specified',
-                                                      style: theme.textTheme.bodyMedium,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          
-                                          const Padding(
-                                            padding: EdgeInsets.symmetric(vertical: 16),
-                                            child: Divider(),
-                                          ),
-                                          
-                                          // Visibility Section
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                event.visibility == EventVisibility.public
-                                                    ? Icons.public_outlined
-                                                    : Icons.lock_outline,
-                                                color: _getVisibilityColor(event.visibility, theme),
-                                                size: 22,
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      'Visibility',
-                                                      style: theme.textTheme.titleMedium?.copyWith(
-                                                        fontWeight: FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    Row(
-                                                      children: [
-                                                        Container(
-                                                          padding: const EdgeInsets.symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 4,
-                                                          ),
-                                                          decoration: BoxDecoration(
-                                                            color: _getVisibilityColor(event.visibility, theme).withOpacity(0.1),
-                                                            borderRadius: BorderRadius.circular(12),
-                                                          ),
-                                                          child: Text(
-                                                            event.visibility == EventVisibility.public
-                                                                ? 'Public'
-                                                                : 'Private',
-                                                            style: theme.textTheme.bodySmall?.copyWith(
-                                                              color: _getVisibilityColor(event.visibility, theme),
-                                                              fontWeight: FontWeight.bold,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(width: 8),
-                                                        Expanded(
-                                                          child: Text(
-                                                            event.visibility == EventVisibility.public
-                                                                ? 'Anyone can view and join this event'
-                                                                : 'Only invited users can view and join this event',
-                                                            style: theme.textTheme.bodySmall?.copyWith(
-                                                              color: theme.colorScheme.onSurfaceVariant,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    
-                                    // Date & Time Section
-                                    const SizedBox(height: 16),
-                                    Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: theme.colorScheme.surface,
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: theme.colorScheme.outline.withOpacity(0.1),
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.03),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          // Title row with Add to Calendar button
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.calendar_today_outlined,
-                                                color: theme.colorScheme.primary,
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                'Date & Time',
-                                                style: theme.textTheme.titleSmall?.copyWith(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              const Spacer(),
-                                              // Add to Calendar Button - smaller for mobile
-                                              InkWell(
-                                                onTap: () => _addToCalendar(event),
-                                                borderRadius: BorderRadius.circular(12),
-                                                child: Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: theme.colorScheme.primaryContainer,
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Icons.add,
-                                                        size: 14,
-                                                        color: theme.colorScheme.onPrimaryContainer,
-                                                      ),
-                                                      const SizedBox(width: 2),
-                                                      Text(
-                                                        'Add to Calendar',
-                                                        style: theme.textTheme.labelSmall?.copyWith(
-                                                          color: theme.colorScheme.onPrimaryContainer,
-                                                          fontWeight: FontWeight.bold,
-                                                          fontSize: 10,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 12),
-                                          // Date and time info - stacked layout on small screens
-                                          LayoutBuilder(
-                                            builder: (context, constraints) {
-                                              // Use vertical layout for very narrow screens
-                                              final bool useVerticalLayout = constraints.maxWidth < 300;
-                                              
-                                              if (useVerticalLayout) {
-                                                return Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    // Date column
-                                                    Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                      children: [
-                                                        Text(
-                                                          'Date',
-                                                          style: theme.textTheme.bodySmall?.copyWith(
-                                                            color: theme.colorScheme.onSurfaceVariant,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(height: 2),
-                                                        Text(
-                                                          DateFormat('EEEE, MMM d, y').format(event.startTime),
-                                                          style: theme.textTheme.bodyMedium?.copyWith(
-                                                            fontWeight: FontWeight.w500,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    const SizedBox(height: 8),
-                                                    // Time column
-                                                    Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                      children: [
-                                                        Text(
-                                                          'Time',
-                                                          style: theme.textTheme.bodySmall?.copyWith(
-                                                            color: theme.colorScheme.onSurfaceVariant,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(height: 2),
-                                                        Text(
-                                                          '${DateFormat('h:mm a').format(event.startTime)} - ${DateFormat('h:mm a').format(event.endTime)}',
-                                                          style: theme.textTheme.bodyMedium?.copyWith(
-                                                            fontWeight: FontWeight.w500,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ],
-                                                );
-                                              } else {
-                                                // Row layout for wider screens
-                                                return Row(
-                                                  children: [
-                                                    // Date Column
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                        children: [
-                                                          Text(
-                                                            'Date',
-                                                            style: theme.textTheme.bodySmall?.copyWith(
-                                                              color: theme.colorScheme.onSurfaceVariant,
-                                                            ),
-                                                          ),
-                                                          const SizedBox(height: 2),
-                                                          Text(
-                                                            DateFormat('EEEE, MMM d, y').format(event.startTime),
-                                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                                              fontWeight: FontWeight.w500,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    // Time Column
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                        children: [
-                                                          Text(
-                                                            'Time',
-                                                            style: theme.textTheme.bodySmall?.copyWith(
-                                                              color: theme.colorScheme.onSurfaceVariant,
-                                                            ),
-                                                          ),
-                                                          const SizedBox(height: 2),
-                                                          Text(
-                                                            '${DateFormat('h:mm a').format(event.startTime)} - ${DateFormat('h:mm a').format(event.endTime)}',
-                                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                                              fontWeight: FontWeight.w500,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                );
-                                              }
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    
-                                    // Event Details Cards - Participants Section
-                                    const SizedBox(height: 16),
-                                    Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: theme.colorScheme.surface,
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: theme.colorScheme.outline.withOpacity(0.1),
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.03),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.people_outline,
-                                                    color: theme.colorScheme.primary,
-                                                    size: 18,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    'Participants',
-                                                    style: theme.textTheme.titleSmall?.copyWith(
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              TextButton(
-                                                onPressed: () {
-                                                  context.push('/events/${event.id}/participants');
-                                                },
-                                                style: TextButton.styleFrom(
-                                                  padding: EdgeInsets.zero,
-                                                  minimumSize: Size.zero,
-                                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                                ),
-                                                child: Text(
-                                                  'See All',
-                                                  style: theme.textTheme.labelSmall?.copyWith(
-                                                    color: theme.colorScheme.primary,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 12),
-                                          
-                                          // Participants list
-                                          SizedBox(
-                                            height: 48,
-                                            child: _buildParticipantsSection(event.id),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    
-                                    // Bottom spacing to ensure content is above the navigation bar
-                                    Container(
-                                      height: 100,
-                                    ),
-                                  ],
+                                child: EventPolicySection(
+                                  eventId: event.id,
                                 ),
                               ),
+                              
+                              // Bottom spacing to ensure content is above the navigation bar
+                              SizedBox(height: 100),
                             ],
                           ),
                         ),
@@ -1231,8 +693,23 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                     child: ElevatedButton(
                                       onPressed: () {
                                         HapticFeedback.mediumImpact();
-                                        if (isParticipant || isCreator) {
-                                          _handleLeaveEvent();
+                                        if (isCreator) {
+                                          // For event creators, navigate to event dashboard
+                                          context.push('/events/${event.id}/dashboard');
+                                        } else if (isParticipant) {
+                                          // For paid events where the user is a participant
+                                          if (event.ticketPrice != null && event.ticketPrice! > 0) {
+                                            // Show a message that ticket is confirmed
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Your ticket is confirmed. Enjoy the event!'),
+                                                backgroundColor: Colors.green,
+                                              ),
+                                            );
+                                          } else {
+                                            // Only allow leaving for free events
+                                            _handleLeaveEvent();
+                                          }
                                         } else {
                                           // Check if event is completed before allowing join
                                           if (DateTime.now().isAfter(event.endTime)) {
@@ -1242,37 +719,119 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                                 backgroundColor: Colors.orange,
                                               ),
                                             );
+                                          } else if (event.ticketPrice != null && event.ticketPrice! > 0) {
+                                            // For paid events, navigate to booking screen
+                                            context.push(
+                                              '/events/${event.id}/booking',
+                                              extra: {'event': event},
+                                            );
                                           } else {
                                             _handleJoinEvent(event);
                                           }
                                         }
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: _getButtonColor(event, isParticipant, isCreator, theme),
+                                        // Use the primary gradient for paid events that are not completed,
+                                        // and when the user is not already a participant
+                                        backgroundColor: (!isParticipant && !isCreator && !DateTime.now().isAfter(event.endTime) && 
+                                            (event.ticketPrice != null && event.ticketPrice! > 0)) 
+                                            ? Colors.transparent
+                                            : _getButtonColor(event, isParticipant, isCreator, theme),
                                         foregroundColor: theme.colorScheme.onPrimary,
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        padding: EdgeInsets.zero, // Remove default padding for proper gradient background
                                         elevation: 0,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(16),
                                         ),
                                       ),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            _getButtonIcon(event, isParticipant, isCreator),
-                                            size: 20,
+                                      child: Ink(
+                                        decoration: (!isParticipant && !isCreator && !DateTime.now().isAfter(event.endTime) && 
+                                            (event.ticketPrice != null && event.ticketPrice! > 0))
+                                            ? BoxDecoration(
+                                                gradient: AppTheme.primaryGradient,
+                                                borderRadius: BorderRadius.circular(16),
+                                              )
+                                            : null,
+                                        child: Container(
+                                          height: 56, // Fixed height to prevent overflow
+                                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                                          alignment: Alignment.center,
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              // If it's a paid event and user hasn't joined yet and event hasn't ended
+                                              if (!isParticipant && !isCreator && !DateTime.now().isAfter(event.endTime) && 
+                                                  (event.ticketPrice != null && event.ticketPrice! > 0)) ...[                                             
+                                                // Show booking ticket info with price - using a flat layout instead of nested columns
+                                                Expanded(
+                                                  child: Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                    children: [
+                                                      // Book tickets text (left-aligned)
+                                                      Text(
+                                                        'Book Tickets',
+                                                        style: theme.textTheme.titleMedium?.copyWith(
+                                                          color: Colors.white,
+                                                          fontWeight: FontWeight.bold,
+                                                          fontSize: 15,
+                                                          letterSpacing: 0.3,
+                                                        ),
+                                                      ),
+                                                      
+                                                      // Price information (right-aligned)
+                                                      Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                                                        textBaseline: TextBaseline.alphabetic,
+                                                        children: [
+                                                          // Vibe price (if available) - larger and more prominent
+                                                          if (event.vibePrice != null && event.vibePrice! > 0) ...[                                                     
+                                                            Text(
+                                                              '₹${event.vibePrice!.toStringAsFixed(0)}',
+                                                              style: theme.textTheme.titleMedium?.copyWith(
+                                                                color: Colors.white,
+                                                                fontWeight: FontWeight.bold,
+                                                                fontSize: 16,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(width: 8),
+                                                          ],
+                                                          // Regular price (struck out if vibe price is available)
+                                                          Text(
+                                                            '₹${event.ticketPrice!.toStringAsFixed(0)}',
+                                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                                              color: Colors.white.withOpacity(0.7),
+                                                              fontWeight: FontWeight.normal,
+                                                              fontSize: 13,
+                                                              decoration: (event.vibePrice != null && event.vibePrice! > 0) ?
+                                                                TextDecoration.lineThrough : null,
+                                                              decorationColor: Colors.white.withOpacity(0.7),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ] else ...[
+                                                // Standard button for free events or other states
+                                                Icon(
+                                                  _getButtonIcon(event, isParticipant, isCreator),
+                                                  size: 20,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  _getButtonText(event, isParticipant, isCreator),
+                                                  style: theme.textTheme.titleMedium?.copyWith(
+                                                    color: theme.colorScheme.onPrimary,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 0.3,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
                                           ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            _getButtonText(event, isParticipant, isCreator),
-                                            style: theme.textTheme.titleMedium?.copyWith(
-                                              color: theme.colorScheme.onPrimary,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 0.3,
-                                            ),
-                                          ),
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   );
@@ -1286,7 +845,7 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                             
                             const SizedBox(width: 12),
                             
-                            // Chat Button (replacing options button)
+                            // Chat Button (at fixed width)
                             Container(
                               height: 56,
                               width: 56, 
@@ -1361,6 +920,391 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // Helper method to build a responsive layout for larger screens (tablet/desktop)
+  Widget _buildLargerScreenLayout(ThemeData theme, Event event, Size size, bool isLargeScreen, double contentMaxWidth) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 100), // Add bottom padding to ensure content isn't hidden
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: contentMaxWidth),
+          child: Column(  
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+          // Event Title with Category Tag
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  event.title,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Main two-column layout
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left column - About section and participants
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // About section
+                    if (event.description != null && event.description!.isNotEmpty) ...[  
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: theme.colorScheme.outline.withOpacity(0.1),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Directly include the EventAboutSection which already has its own header
+                            EventAboutSection(description: event.description!),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    
+                    // Participants section
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: theme.colorScheme.outline.withOpacity(0.1),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(24),
+                        child: FutureBuilder<List<EventParticipant>>(
+                          future: ref.read(eventParticipantControllerProvider.notifier).loadParticipants(event.id),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
+                            
+                            final participants = snapshot.data ?? [];
+                            
+                            return EventParticipantsSection(
+                              participants: participants,
+                              onSeeAll: () => context.push('/events/${event.id}/participants'),
+                              // Show more participants on larger screens
+                              maxDisplayed: 5,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    
+                    // Policies section
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: theme.colorScheme.outline.withOpacity(0.1),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(24),
+                        child: EventPolicySection(
+                          eventId: event.id,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(width: 24),
+              
+              // Right column - Info cards (location, date, etc)
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Location Section Card
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: theme.colorScheme.outline.withOpacity(0.1),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(24),
+                        child: EventLocationSection(
+                          location: event.location ?? 'No location specified',
+                          onTap: event.location != null ? () {
+                            // Handle opening location in maps
+                            final url = Uri.encodeFull('https://maps.google.com/?q=${event.location}');
+                            launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                          } : null,
+                        ),
+                      ),
+                    ),
+                    
+                    // Visibility Section Card
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: theme.colorScheme.outline.withOpacity(0.1),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(24),
+                        child: EventVisibilitySection(
+                          visibility: event.visibility,
+                        ),
+                      ),
+                    ),
+                    
+                    // Date & Time Section Card
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: theme.colorScheme.outline.withOpacity(0.1),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(24),
+                        child: EventDateTimeSection(
+                          startTime: event.startTime,
+                          endTime: event.endTime,
+                          onAddToCalendar: () => _addToCalendar(event),
+                        ),
+                      ),
+                    ),
+                    
+                    // Ticket information intentionally removed for larger screens
+                    // to maintain a clean, minimalist UI as requested
+                  ],
+                ),
+              ),
+            ],
+          ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Helper method to build all event info cards for mobile layout
+  Widget _buildEventInfoCards(ThemeData theme, Event event) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Location Section Card
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.1),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(24),
+            child: EventLocationSection(
+              location: event.location ?? 'No location specified',
+              onTap: event.location != null ? () {
+                // Handle opening location in maps
+                final url = Uri.encodeFull('https://maps.google.com/?q=${event.location}');
+                launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+              } : null,
+            ),
+          ),
+        ),
+        
+        // Visibility Section Card
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.1),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(24),
+            child: EventVisibilitySection(
+              visibility: event.visibility,
+            ),
+          ),
+        ),
+        
+        // Date & Time Section Card
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.1),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(24),
+            child: EventDateTimeSection(
+              startTime: event.startTime,
+              endTime: event.endTime,
+              onAddToCalendar: () => _addToCalendar(event),
+            ),
+          ),
+        ),
+        
+        // Participants Section Card
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.1),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(24),
+            child: FutureBuilder<List<EventParticipant>>(
+              future: ref.read(eventParticipantControllerProvider.notifier).loadParticipants(event.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+                
+                final participants = snapshot.data ?? [];
+                
+                return EventParticipantsSection(
+                  participants: participants,
+                  onSeeAll: () => context.push('/events/${event.id}/participants'),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1497,14 +1441,17 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
       );
 
       if (!hasCompleted) {
-        // Show requirements dialog
-        final completed = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => EventJoinRequirementsDialog(event: event),
-        );
+        // Show full-screen requirements view
+        final completed = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (context) => EventJoinRequirementsDialog(event: event),
+          ),
+        ) ?? false;
 
-        if (completed != true) return; // User cancelled or failed to complete
+        if (!completed) {
+          return; // User cancelled
+        }
       }
 
       // Now join the event
@@ -1659,10 +1606,10 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
 
   Future<void> _shareEvent(Event event) async {
     try {
-      // Web URL (works everywhere)
-      final String webUrl = 'https://vibeswiper.scompasshub.com/#/events/${event.id}';
+      // Generate shareable link using AppRoutes helper
+      final String shareableLink = AppRoutes.getEventDetailsUri(event.id);
       
-      // Build sharing text with only web URL
+      // Build sharing text with shareable link
       final String eventDetails = '''
 ${event.title}
 
@@ -1671,7 +1618,7 @@ ${event.title}
 
 ${event.description ?? ''}
 
-🌐 View online: $webUrl
+🔗 ${shareableLink}
 ''';
 
       // Use Share.share for cross-platform sharing
@@ -1951,8 +1898,12 @@ ${event.description ?? ''}
   Color _getButtonBoxShadowColor(Event event, bool isParticipant, bool isCreator, ThemeData theme) {
     if (DateTime.now().isAfter(event.endTime)) {
       return Colors.grey.withOpacity(0.3);
-    } else if (isParticipant || isCreator) {
+    } else if (isParticipant && !isCreator && (event.ticketPrice == null || event.ticketPrice == 0)) {
+      // Only show red for free events where regular participant wants to leave
       return theme.colorScheme.error.withOpacity(0.3);
+    } else if (isCreator || (isParticipant && event.ticketPrice != null && event.ticketPrice! > 0)) {
+      // For creators and paid event participants, use primary color
+      return theme.colorScheme.primary.withOpacity(0.3);
     } else {
       return theme.colorScheme.primary.withOpacity(0.3);
     }
@@ -1961,8 +1912,12 @@ ${event.description ?? ''}
   Color _getButtonColor(Event event, bool isParticipant, bool isCreator, ThemeData theme) {
     if (DateTime.now().isAfter(event.endTime)) {
       return Colors.grey;
-    } else if (isParticipant || isCreator) {
+    } else if (isParticipant && !isCreator && (event.ticketPrice == null || event.ticketPrice == 0)) {
+      // Only show red for free events where regular participant wants to leave
       return theme.colorScheme.error;
+    } else if (isCreator || (isParticipant && event.ticketPrice != null && event.ticketPrice! > 0)) {
+      // For creators and paid event participants, use primary color
+      return theme.colorScheme.primary;
     } else {
       return theme.colorScheme.primary;
     }
@@ -1971,7 +1926,15 @@ ${event.description ?? ''}
   IconData _getButtonIcon(Event event, bool isParticipant, bool isCreator) {
     if (DateTime.now().isAfter(event.endTime)) {
       return Icons.event_busy;
-    } else if (isParticipant || isCreator) {
+    } else if (isCreator) {
+      // For event creators
+      return Icons.dashboard_outlined;
+    } else if (isParticipant) {
+      // For paid events where user is a participant, show a ticket icon
+      if (event.ticketPrice != null && event.ticketPrice! > 0) {
+        return Icons.confirmation_num_outlined;
+      }
+      // For free events where user is a participant
       return Icons.exit_to_app;
     } else {
       return Icons.group_add;
@@ -1981,10 +1944,23 @@ ${event.description ?? ''}
   String _getButtonText(Event event, bool isParticipant, bool isCreator) {
     if (DateTime.now().isAfter(event.endTime)) {
       return 'Event Completed';
-    } else if (isParticipant || isCreator) {
+    } else if (isCreator) {
+      // For event creators
+      return 'Event Dashboard';
+    } else if (isParticipant) {
+      // For paid events where user is a participant, show a different message
+      if (event.ticketPrice != null && event.ticketPrice! > 0) {
+        return 'Ticket Confirmed';
+      }
+      // For free events where user is a participant
       return 'Leave Event';
     } else {
-      return 'Join Event';
+      // For paid events, we'll handle the text display separately in the button UI
+      if (event.ticketPrice != null && event.ticketPrice! > 0) {
+        return 'Book Tickets';
+      } else {
+        return 'Join Event';
+      }
     }
   }
 

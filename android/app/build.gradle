@@ -3,6 +3,8 @@ plugins {
     id "kotlin-android"
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
+    // Add the Google services Gradle plugin
+    id "com.google.gms.google-services"
 }
 
 def keystoreProperties = new Properties()
@@ -12,7 +14,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.scompass_07"
+    namespace = "com.packages.scompass"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -39,7 +41,7 @@ android {
         applicationId = "com.packages.scompass"
         minSdkVersion flutter.minSdkVersion
         targetSdk = 34  // Target Android 14 for now
-        versionCode = 24
+        versionCode = 26
         versionName = "1.0.6"
         multiDexEnabled true
         
@@ -79,4 +81,11 @@ dependencies {
     implementation 'com.razorpay:checkout:1.6.41'  // Make sure this matches your Razorpay version
     implementation 'com.google.android.gms:play-services-ads:22.6.0'  // Add Google Play Services Ads
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    
+    // Add the Firebase BoM
+    implementation platform('com.google.firebase:firebase-bom:32.7.2')
+    
+    // Firebase Cloud Messaging dependencies
+    implementation 'com.google.firebase:firebase-messaging'
+    implementation 'com.google.firebase:firebase-analytics'
 }

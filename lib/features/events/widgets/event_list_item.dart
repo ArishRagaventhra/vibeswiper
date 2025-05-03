@@ -99,7 +99,7 @@ class EventListItem extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(event.status).withOpacity(0.9),
+                          color: _getStatusPillColor(event.startTime, event.status).withOpacity(0.9),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
@@ -358,6 +358,17 @@ class EventListItem extends StatelessWidget {
       default:
         return Colors.grey;
     }
+  }
+
+  Color _getStatusPillColor(DateTime eventDate, EventStatus status) {
+    // Check if event has ended first, regardless of status
+    final now = DateTime.now();
+    if (eventDate.isBefore(now)) {
+      return Colors.red; // Show red for any ended event
+    }
+    
+    // Otherwise, use the regular status color
+    return _getStatusColor(status);
   }
 
   Color _getCategoryColor(String category) {

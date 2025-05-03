@@ -1,0 +1,36 @@
+create view public.active_events as
+select
+  events.id,
+  events.creator_id,
+  events.title,
+  events.description,
+  events.location,
+  events.start_time,
+  events.end_time,
+  events.event_type,
+  events.max_participants,
+  events.category,
+  events.tags,
+  events.event_status,
+  events.registration_deadline,
+  events.ticket_price,
+  events.currency,
+  events.media_urls,
+  events.participant_count,
+  events.waitlist_enabled,
+  events.waitlist_limit,
+  events.cancellation_reason,
+  events.visibility,
+  events.metadata,
+  events.created_at,
+  events.updated_at,
+  events.favorites_count,
+  events.status,
+  events.recurring_pattern,
+  events.reminder_before,
+  events.access_code,
+  events.deleted_at
+from
+  events
+where
+  events.deleted_at is null;

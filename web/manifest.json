@@ -1,13 +1,30 @@
 {
-    "name": "Vibeswiper",
-    "short_name": "Vibeswiper",
+    "name": "VibeSwiper - Adventure Travel Events",
+    "short_name": "VibeSwiper",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#hexcode",
-    "theme_color": "#hexcode",
-    "description": "A new Flutter project.",
+    "background_color": "#121212",
+    "theme_color": "#6200EA",
+    "description": "Find local adventure events near you. Discover kayaking, paragliding, off-roading and other exciting outdoor activities with like-minded enthusiasts.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": ["social", "events", "adventure travel", "outdoor activities", "extreme sports", "kayaking", "paragliding", "off-roading"],
+    "screenshots": [
+        {
+            "src": "screenshots/home-screen.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "platform": "wide",
+            "label": "Adventure Events Home Screen"
+        },
+        {
+            "src": "screenshots/events-screen.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "platform": "wide",
+            "label": "Adventure Events Discovery"
+        }
+    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",

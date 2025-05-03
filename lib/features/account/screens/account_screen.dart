@@ -227,9 +227,22 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                               ),
                             ),
                             AccountListTile(
-                              title: 'Paid Event History ',
+                              title: 'Payment History',
                               icon: Icons.receipt_long_outlined,
-                              onTap: () => context.push('/payments/history'),
+                              onTap: () => context.go(AppRoutes.paymentHistory),
+                              useDivider: false,
+                            ),
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 16),
+                              child: const Divider(
+                                height: 1,
+                                color: Colors.black12,
+                              ),
+                            ),
+                            AccountListTile(
+                              title: 'My Bookings',
+                              icon: Icons.confirmation_number_outlined,
+                              onTap: () => context.push(AppRoutes.bookingHistory),
                               useDivider: false,
                             ),
                             Container(
@@ -243,6 +256,39 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                               title: 'Feedback & Feature Requests',
                               icon: Icons.feedback_outlined,
                               onTap: _talkToFounder,
+                              useDivider: false,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Blogs Section
+                      Text(
+                        'Blogs',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            AccountListTile(
+                              title: 'Browse All Blogs',
+                              icon: Icons.article_outlined,
+                              onTap: () => context.go('/blogs'),
                               useDivider: false,
                             ),
                           ],

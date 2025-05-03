@@ -22,6 +22,7 @@ class MobilePaymentService implements PlatformPaymentService {
     required String userContact,
     required Function(String paymentId, String? orderId) onSuccess,
     required Function(String error) onError,
+    String? orderId,
   }) async {
     try {
       // Remove any existing handlers
@@ -70,7 +71,19 @@ class MobilePaymentService implements PlatformPaymentService {
           'color': '#6C63FF',
         },
         'send_sms_hash': true,
+        'readonly': {
+          'contact': true,
+          'email': true
+        },
+        // Enable auto-capture
+        'capture': true,
       };
+      
+      // Add order ID if provided - this is critical for auto-capture to work
+      if (orderId != null) {
+        options['order_id'] = orderId;
+        debugPrint('Using Razorpay Order ID: $orderId');
+      }
 
       debugPrint('Opening Razorpay with options: $options');
       _razorpay.open(options);

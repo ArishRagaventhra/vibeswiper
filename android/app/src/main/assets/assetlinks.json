@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.packages.scompass",
+    "sha256_cert_fingerprints": ["E1:FA:98:B2:2F:32:F2:F8:3F:63:93:B0:36:81:81:CF:48:F7:6A:28:7F:64:FF:DC:53:CD:A1:1A:74:84:7D:2E"]
+  }
+}]

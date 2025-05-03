@@ -74,6 +74,34 @@ class PaymentRepository {
       throw Exception('Failed to fetch payments: $e');
     }
   }
+  
+  // Get payments for a user with a specific status
+  Future<List<Payment>> getUserPaymentsWithStatus(String userId, String status) async {
+    try {
+      // First verify if the user has permission
+      final currentUser = _supabase.auth.currentUser;
+      if (currentUser == null || currentUser.id != userId) {
+        throw Exception('Unauthorized: User not authenticated or ID mismatch');
+      }
+
+      final response = await _supabase
+          .from('payments')
+          .select()
+          .eq('user_id', userId)
+          .eq('status', status)
+          .order('created_at', ascending: false);
+
+      return response.map((json) => Payment.fromJson(json)).toList();
+    } on PostgrestException catch (e) {
+      if (e.code == '42501') { // RLS policy violation
+        throw Exception('Permission denied: Unable to fetch payments. Please ensure you are logged in.');
+      } else {
+        throw Exception('Database error: ${e.message}');
+      }
+    } catch (e) {
+      throw Exception('Failed to fetch payments with status: $e');
+    }
+  }
 
   Future<Payment?> getPaymentByEventId(String eventId) async {
     try {

@@ -12,6 +12,10 @@ import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:scompass_07/shared/services/ad_service.dart';
 import 'package:scompass_07/shared/widgets/native_ad_factory.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:scompass_07/services/fcm_service.dart';
+import 'package:scompass_07/services/deep_link_service.dart';
+
 
 // Global navigator key for accessing the navigator from anywhere
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -44,6 +48,32 @@ Future<void> main() async {
     return null;
   });
   
+  // Only initialize Firebase on non-web platforms since FCM is only needed for mobile
+  if (!kIsWeb) {
+    try {
+      debugPrint('Starting Firebase initialization...');
+      
+      // Initialize Firebase for mobile
+      await Firebase.initializeApp();
+      debugPrint('Firebase core initialized successfully');
+      
+      // Initialize FCM service
+      final fcmService = FCMService();
+      await fcmService.initialize();
+      
+      // Get FCM token again and print it for debugging
+      final token = await fcmService.getToken();
+      debugPrint('============= FIREBASE TOKEN FOR TESTING ===============');
+      debugPrint('FCM TOKEN: $token');
+      debugPrint('=======================================================');
+      
+      debugPrint('Firebase and FCM service initialized successfully');
+    } catch (e, stackTrace) {
+      debugPrint('Error initializing Firebase/FCM: $e');
+      debugPrint('Stack trace: $stackTrace');
+    }
+  }
+
   // Initialize Google Mobile Ads SDK
   if (!kIsWeb) {
     // Initialize AdMob for mobile platforms only
@@ -75,11 +105,45 @@ Future<void> main() async {
   );
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    
+    // Initialize deep link service immediately in initState
+    // This is crucial for handling app starts from deep links
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('Initializing deep link service from initState');
+      ref.read(deepLinkServiceProvider).init();
+    });
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // When app resumes from background, re-initialize deep links
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('App resumed, re-initializing deep link service');
+      ref.read(deepLinkServiceProvider).init();
+    }
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeNotifierProvider);
     
     return EdgeToEdgeContainer(

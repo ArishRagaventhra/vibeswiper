@@ -203,16 +203,6 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
           ),
         ),
         actions: [
-          if (_isOrganizer && _isEventPaid)
-            IconButton(
-              icon: Icon(
-                Icons.payment_outlined,
-                color: foregroundColor,
-                size: 22,
-              ),
-              tooltip: 'Manage Payment Link',
-              onPressed: () => _showPaymentTypeSelectorDialog(widget.eventId),
-            ),
           IconButton(
             icon: Icon(
               Icons.group_outlined,
@@ -245,67 +235,6 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
             children: [
               Column(
                 children: [
-                  // Payment Link Banner (if available) - Only shown for paid events
-                  if (_isEventPaid)
-                    ref.watch(eventPaymentsStreamProvider(widget.eventId)).when(
-                      data: (payments) {
-                        if (payments.isNotEmpty) {
-                          return PaymentLinkBanner(
-                            payments: payments,
-                            isOrganizer: _isOrganizer,
-                            eventName: _eventName,
-                            userName: _userName,
-                            eventId: widget.eventId,
-                            onEdit: _isOrganizer
-                                ? () => _showPaymentTypeSelectorDialog(widget.eventId)
-                                : null,
-                            onRemove: _isOrganizer
-                                ? (paymentType) => _removePaymentType(widget.eventId, paymentType)
-                                : null,
-                          );
-                        } else if (_isOrganizer) {
-                          // Show a button to add payment options for organizers
-                          return Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.payment_outlined,
-                                  size: 16,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Add payment methods for participants',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                  ),
-                                ),
-                                const Spacer(),
-                                TextButton.icon(
-                                  onPressed: () => _showPaymentTypeSelectorDialog(widget.eventId),
-                                  icon: const Icon(Icons.add, size: 16),
-                                  label: const Text('Add'),
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        } else {
-                          return const SizedBox();
-                        }
-                      },
-                      loading: () => const SizedBox(),
-                      error: (_, __) => const SizedBox(),
-                    ),
                   Expanded(
                     child: Consumer(
                       builder: (context, ref, child) {
@@ -349,7 +278,7 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.stretch,
                                         children: [
                                           Text(
-                                            'Frequently asked questions:',
+                                            'Ask a question:',
                                             textAlign: TextAlign.center,
                                             style: theme.textTheme.bodySmall?.copyWith(
                                               color: theme.hintColor,

@@ -13,6 +13,7 @@ abstract class PlatformPaymentService {
     required String userContact,
     required Function(String paymentId, String? orderId) onSuccess,
     required Function(String error) onError,
+    String? orderId,  // Razorpay order ID for auto-capture
   });
 
   void dispose();

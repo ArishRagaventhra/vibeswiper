@@ -15,6 +15,7 @@ class WebPaymentService implements PlatformPaymentService {
     required String userContact,
     required Function(String paymentId, String? orderId) onSuccess,
     required Function(String error) onError,
+    String? orderId,
   }) async {
     // Create options for Razorpay web checkout
     final options = js.JsObject.jsify({
@@ -26,6 +27,13 @@ class WebPaymentService implements PlatformPaymentService {
         'email': userEmail,
         'contact': userContact,
       },
+      // Track payment interactions (as per user preference)
+      'notes': {
+        'platform': 'web',
+        'source': 'vibe_swiper'
+      },
+      // Auto-capture payment immediately instead of just authorizing
+      'capture': true,
       'handler': js.allowInterop((response) {
         try {
           final paymentId = response['razorpay_payment_id'];
@@ -37,14 +45,20 @@ class WebPaymentService implements PlatformPaymentService {
         }
       }),
       'modal': {
-        'ondismiss': js.allowInterop(() {
+        'ondismiss': js.allowInterop((_) {
           try {
             print('Payment modal dismissed by user');
             onError('Payment cancelled by user');
           } catch (e) {
             print('Error in ondismiss handler: $e');
+            // Last resort to prevent app freezing
+            try {
+              onError('Payment cancelled');
+            } catch (_) {}
           }
         }),
+        'escape': true,
+        'animation': true
       },
       'theme': {
         'color': '#6C63FF',
@@ -60,6 +74,24 @@ class WebPaymentService implements PlatformPaymentService {
     try {
       final razorpay = js.context['Razorpay'];
       final checkout = js.JsObject(razorpay, [options]);
+      
+      // Add order ID if provided - critical for auto-capture
+      if (orderId != null) {
+        options['order_id'] = orderId;
+        print('Using Razorpay Order ID: $orderId');
+      }
+      
+      // Add explicit handling for payment failed events
+      checkout['on'] = js.allowInterop((String event, js.JsFunction handler) {
+        if (event == 'payment.failed') {
+          handler.callMethod('call', [js.JsObject.jsify({
+            'error': {
+              'description': 'Payment failed',
+            }
+          })]);
+        }
+      });
+      
       checkout.callMethod('open');
     } catch (e) {
       onError('Error initializing payment: $e');

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../../config/theme.dart';
+import '../../../config/routes.dart';
 import '../models/legal_document.dart';
 import '../providers/legal_documents_provider.dart';
 
@@ -38,7 +40,7 @@ class PrivacyPolicyScreen extends ConsumerWidget {
             color: foregroundColor,
             size: 20,
           ),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => context.go(AppRoutes.settings),
         ),
       ),
       body: privacyPolicyAsync.when(

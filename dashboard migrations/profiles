@@ -1,0 +1,31 @@
+create table public.profiles (
+  id uuid not null,
+  username text not null,
+  full_name text null,
+  avatar_url text null,
+  bio text null,
+  website text null,
+  email text null,
+  role public.user_role null default 'user'::user_role,
+  is_verified boolean null default false,
+  last_seen timestamp with time zone null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  phone text null,
+  deleted_at timestamp with time zone null,
+  constraint profiles_pkey primary key (id),
+  constraint profiles_username_key unique (username),
+  constraint profiles_id_fkey foreign KEY (id) references auth.users (id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_profiles_username on public.profiles using btree (username) TABLESPACE pg_default;
+
+create index IF not exists idx_profiles_created_at on public.profiles using btree (created_at) TABLESPACE pg_default;
+
+create trigger on_account_recovery BEFORE
+update on profiles for EACH row
+execute FUNCTION handle_account_recovery ();
+
+create trigger on_profile_updated BEFORE
+update on profiles for EACH row
+execute FUNCTION handle_profile_updated ();
