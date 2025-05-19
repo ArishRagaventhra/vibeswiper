@@ -227,9 +227,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                               ),
                             ),
                             AccountListTile(
-                              title: 'Payment History',
-                              icon: Icons.receipt_long_outlined,
-                              onTap: () => context.go(AppRoutes.paymentHistory),
+                              title: 'Creator Payment Settings',
+                              icon: Icons.account_balance_wallet_outlined,
+                              onTap: () => context.go(AppRoutes.creatorPaymentSettings),
                               useDivider: false,
                             ),
                             Container(

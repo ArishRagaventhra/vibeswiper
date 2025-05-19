@@ -42,18 +42,17 @@ class EventListItem extends StatelessWidget {
     
     return Card(
       margin: EdgeInsets.symmetric(
-        horizontal: isGridView ? 0 : 12, 
+        horizontal: isGridView ? 0 : 16, 
         vertical: isGridView ? 0 : 8
       ),
       clipBehavior: Clip.antiAlias,
-      elevation: 0, // Removing elevation for a cleaner look
+      elevation: isGridView ? 6 : 4,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outlineVariant.withOpacity(0.5), width: 1)
+        borderRadius: BorderRadius.circular(20),
       ),
       child: InkWell(
         onTap: onTap ?? () => context.go('/events/${event.id}'),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: isGridView ? _buildGridItem(theme) : _buildListItem(theme),
       ),
     );
@@ -90,33 +89,47 @@ class EventListItem extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(8),
+                      color: theme.colorScheme.primary.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Text(
-                      event.eventType == EventType.free ? 'FREE' : '₹${event.ticketPrice?.toStringAsFixed(0) ?? '0'}',
+                      event.eventType == EventType.free ? 'FREE' : '₹${event.ticketPrice?.toStringAsFixed(2) ?? '0.00'}',
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
+                        color: theme.colorScheme.onPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
                       ),
                     ),
                   ),
                   const SizedBox(width: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade500,
-                      borderRadius: BorderRadius.circular(8),
+                      color: _getStatusPillColor(event.startTime, event.status).withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Text(
                       _getTimeUntilEvent(event.startTime),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
                       ),
                     ),
                   ),

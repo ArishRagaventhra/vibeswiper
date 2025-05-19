@@ -70,42 +70,8 @@ class EventCreationService {
           throw Exception('Vibe price cannot be higher than ticket price');
         }
         
-        // IMPORTANT: For paid events, handle payment FIRST before creating the event
-        final paymentSuccess = await _processPaymentFirst(
-          eventName: title,
-          userEmail: organizerEmail,
-          userContact: organizerPhone,
-          title: title,
-          creatorId: creatorId,
-          description: description,
-          location: location,
-          city: city,
-          country: country,
-          startTime: startTime,
-          endTime: endTime,
-          eventType: eventType,
-          visibility: visibility,
-          maxParticipants: maxParticipants,
-          category: category,
-          tags: tags,
-          recurringPattern: recurringPattern,
-          reminderBefore: reminderBefore,
-          registrationDeadline: registrationDeadline,
-          ticketPrice: ticketPrice,
-          vibePrice: vibePrice,
-          currency: currency,
-          mediaFiles: mediaFiles,
-          accessCode: accessCode,
-          organizerName: organizerName,
-          requirementsData: requirementsData,
-          context: context,
-        );
-        
-        // Only proceed with event creation if payment was successful
-        if (!paymentSuccess) {
-          debugPrint('Payment was not successful - aborting event creation');
-          return null;
-        }
+        // Skip payment checkout process - allow both free and paid events to be listed directly
+        debugPrint('Listing paid event without requiring Razorpay checkout');
       }
 
       // Only create event after successful payment (or for free events)
@@ -152,11 +118,8 @@ class EventCreationService {
             await requirementsRepo.createEventRequirements(draftEvent.id, requirementsData);
           }
 
-          // Event created successfully - for paid events, it's already finalized
-          // For free events, finalize it now
-          if (eventType != EventType.paid) {
-            await finalizeEventCreation(draftEvent.id);
-          }
+          // Event created successfully - finalize all events (both free and paid)
+          await finalizeEventCreation(draftEvent.id);
           
           return draftEvent;
         } catch (e) {

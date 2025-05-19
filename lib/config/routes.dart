@@ -28,6 +28,7 @@ import '../features/settings/screens/privacy_policy_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 import '../features/settings/screens/terms_conditions_screen.dart';
 import '../features/payments/screens/payment_history_screen.dart';
+import '../features/payments/screens/creator_payment_settings_screen.dart';
 import '../features/events/screens/event_search_screen.dart';
 import '../screens/fcm_debug_screen.dart';
 import '../features/events/screens/booking_history_screen.dart';
@@ -85,6 +86,7 @@ class AppRoutes {
   static const String bookingDetails = '/booking/:id';
   static const String ticketScanner = '/events/:eventId/ticket-scanner';
   static const String paymentAnalytics = '/events/:eventId/payment-analytics';
+  static const String creatorPaymentSettings = '/payment-settings';
   
   // Helper method to generate shareable URI
   static String generateShareableUri(String path) {
@@ -395,6 +397,12 @@ class AppRoutes {
             ),
           ),
           // Removed notification settings route
+          GoRoute(
+            path: creatorPaymentSettings,
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: CreatorPaymentSettingsScreen(),
+            ),
+          ),
           GoRoute(
             path: paymentHistory,
             pageBuilder: (context, state) => NoTransitionPage(

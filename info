@@ -1,0 +1,5 @@
+[error] Expected to find ')' (c:\users\arish ragaventhra\downloads\vibe swiper\scompass_07\lib\features\events\widgets\event_list_item.dart:228:7)
+[info] 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated after v3.18.0-0.1.pre (c:\users\arish ragaventhra\downloads\vibe swiper\scompass_07\lib\features\events\widgets\event_list_item.dart:488:52)
+[info] 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated after v3.18.0-0.1.pre (c:\users\arish ragaventhra\downloads\vibe swiper\scompass_07\lib\features\events\widgets\event_list_item.dart:516:34)
+[info] 'surfaceVariant' is deprecated and shouldn't be used. Use surfaceContainerHighest instead. This feature was deprecated after v3.18.0-0.1.pre (c:\users\arish ragaventhra\downloads\vibe swiper\scompass_07\lib\features\events\widgets\event_list_item.dart:533:34)
+[info] Convert 'key' to a super parameter (c:\users\arish ragaventhra\downloads\vibe swiper\scompass_07\lib\features\events\widgets\event_list_item.dart:11:9)

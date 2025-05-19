@@ -24,6 +24,21 @@ class DeepLinkService {
       _linkSubscription?.cancel(); // Cancel existing subscription to avoid duplicates
     }
     
+    // Add diagnostic information about app links
+    debugPrint('📱 CHECKING APP LINKS CONFIGURATION');
+    debugPrint('⚠️ For app links to work properly:');
+    debugPrint('⚠️ 1. assetlinks.json must be accessible at https://vibeswiper.scompasshub.com/.well-known/assetlinks.json');
+    debugPrint('⚠️ 2. Check Settings > Apps > Vibeswiper > Open by default > Add links');
+    debugPrint('⚠️ 3. The SHA-256 fingerprint in assetlinks.json must match your app signing key');
+    
+    // Give additional instructions for testing
+    debugPrint('👊 TIP: Try clearing app defaults in Settings > Apps > Vibeswiper > Open by default > Clear defaults');
+    debugPrint('👊 TIP: After installing a new version, you may need to manually enable app links again');
+    
+    // CRITICAL: Wait a moment to ensure app is fully initialized before handling deep links
+    // This is crucial for GoRouter to be ready to navigate
+    await Future.delayed(const Duration(milliseconds: 500));
+    
     // Handle the case when app is started by a link
     if (!kIsWeb) {
       try {
@@ -32,6 +47,8 @@ class DeepLinkService {
         final initialUri = await _appLinks.getInitialAppLink();
         if (initialUri != null) {
           debugPrint('🔗 DEEP LINK: App opened with link: $initialUri');
+          // Critical: Add more delay for cold starts with deep links
+          await Future.delayed(const Duration(milliseconds: 800));
           _handleDeepLink(initialUri);
         } else {
           debugPrint('No initial app link found');
@@ -74,25 +91,69 @@ class DeepLinkService {
     
     debugPrint('✅ Successfully parsed path: $path from URI: $uri');
     
-    // Specific handling for known paths with logging
+    // Extract query parameters if they exist
+    final queryParams = uri.queryParameters;
+    debugPrint('📝 Query parameters: $queryParams');
+    
+    // Create a map to store extra data for the destination screen
+    Map<String, dynamic> extraData = {};
+    
+    // Enhanced handling for specific paths with logging
     if (path.startsWith('/events/')) {
       final eventId = path.substring('/events/'.length);
       debugPrint('📱 Navigating to event details with ID: $eventId');
+      extraData['eventId'] = eventId;
     } else if (path == '/booking-history') {
       debugPrint('📱 Navigating to booking history');
+      extraData['activeTab'] = 0; // First tab by default
+    } else if (path.startsWith('/profile/')) {
+      final profileId = path.substring('/profile/'.length);
+      debugPrint('📱 Navigating to profile with ID: $profileId');
+      extraData['profileId'] = profileId;
+    } else if (path.startsWith('/booking/')) {
+      final bookingId = path.substring('/booking/'.length);
+      debugPrint('📱 Navigating to booking with ID: $bookingId');
+      extraData['bookingId'] = bookingId;
+    }
+    
+    // Add query parameters to extra data
+    if (queryParams.isNotEmpty) {
+      extraData['queryParams'] = queryParams;
     }
     
     // Execute navigation with try-catch to identify issues
     try {
       debugPrint('🧭 Attempting to navigate to path: $path');
-      router.go(path);
-      debugPrint('✅ Navigation appears successful');
+      debugPrint('📡 Extra data for navigation: $extraData');
+      
+      // Increase delay to ensure the app is fully initialized
+      // 300ms should give the app more time to set up routes
+      Future.delayed(const Duration(milliseconds: 300), () {
+        debugPrint('🔌 Navigation time: ${DateTime.now().toIso8601String()}');
+        
+        // Use pushReplacement instead of go to force a refresh
+        try {
+          // Try with extra data if available
+          if (extraData.isNotEmpty) {
+            router.go(path, extra: extraData);
+          } else {
+            router.go(path);
+          }
+          debugPrint('✅ Navigation appears successful');
+        } catch (innerError) {
+          // If extra doesn't work, try without
+          debugPrint('⚠️ Error with extra data: $innerError, trying without');
+          router.go(path);
+        }
+      });
     } catch (e) {
       debugPrint('❌ Navigation error: $e');
       // Fallback to events page if navigation fails
       try {
         debugPrint('⚠️ Attempting fallback navigation to /events');
-        router.go('/events');
+        Future.delayed(const Duration(milliseconds: 300), () {
+          router.go('/events');
+        });
       } catch (e) {
         debugPrint('💥 Fatal navigation error: $e');
       }
@@ -106,7 +167,13 @@ class DeepLinkService {
     // Handle different URI schemes
     if (uri.scheme == 'vibeswiper') {
       // Handle custom scheme: vibeswiper://events/123
-      final path = '/${uri.path}';
+      String path = uri.path;
+      
+      // Ensure path has leading slash
+      if (!path.startsWith('/')) {
+        path = '/$path';
+      }
+      
       debugPrint('Parsed custom scheme path: $path');
       return path;
     } else if (uri.host == 'vibeswiper.scompasshub.com') {
@@ -131,18 +198,29 @@ class DeepLinkService {
         // Process specific paths
         String path = uri.path;
         
-        // Check for known paths directly
-        if (path.startsWith('/booking-history')) {
-          debugPrint('Detected booking-history path: $path');
-          return path;
+        // Comprehensive path detection
+        // Define all known path patterns for better handling
+        final knownPathPrefixes = [
+          '/booking-history',
+          '/events/',
+          '/profile/',
+          '/booking/',
+          '/account',
+          '/blogs',
+          '/settings',
+          '/notifications',
+          '/payment'
+        ];
+        
+        // Check if the path starts with any known prefix
+        for (final prefix in knownPathPrefixes) {
+          if (path.startsWith(prefix)) {
+            debugPrint('Detected known path: $path');
+            return path;
+          }
         }
         
-        // Check for event path pattern
-        if (path.startsWith('/events/')) {
-          debugPrint('Detected events path: $path');
-          return path;
-        }
-        
+        // For any other path
         debugPrint('Using path from URL: $path');
         return path;
       }
@@ -162,12 +240,20 @@ class DeepLinkService {
           return '/$hashPath'; 
         }
       }
-      return uri.path;
+      
+      // Ensure path has leading slash
+      String path = uri.path;
+      if (!path.startsWith('/') && path.isNotEmpty) {
+        path = '/$path';
+      }
+      
+      return path;
     }
     
-    // If no pattern matched, log error and return empty
+    // If no pattern matched, log error and return default home path
+    // It's better to return a valid path than an empty string
     debugPrint('WARNING: No pattern matched for URI: $uri');
-    return '';
+    return '/';
   }
 
   // Generate shareable links for different platforms

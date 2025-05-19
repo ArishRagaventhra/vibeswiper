@@ -1322,19 +1322,15 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       );
 
       if (event != null) {
-        // For free events only, show success message and navigate
-        // For paid events, navigation will happen in payment flow
-        if (_eventType != EventType.paid) {
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Your event has been successfully created!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          if (mounted) {
-            context.go('/events');
-          }
+        // Show success message for all events (both free and paid)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Your event has been successfully created!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        if (mounted) {
+          context.go('/events');
         }
       }
     } catch (e) {

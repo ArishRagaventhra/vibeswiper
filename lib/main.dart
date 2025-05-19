@@ -113,17 +113,40 @@ class MyApp extends ConsumerStatefulWidget {
 }
 
 class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
+  // Flag to prevent multiple initialization attempts
+  bool _deepLinksInitialized = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     
-    // Initialize deep link service immediately in initState
-    // This is crucial for handling app starts from deep links
+    // Initialize deep link service properly with proper sequencing
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint('Initializing deep link service from initState');
-      ref.read(deepLinkServiceProvider).init();
+      _initializeDeepLinks();
     });
+  }
+  
+  Future<void> _initializeDeepLinks() async {
+    // Prevent multiple initialization attempts
+    if (_deepLinksInitialized) return;
+    _deepLinksInitialized = true;
+    
+    // Log initialization start
+    debugPrint('🔄 Starting deep link service initialization...');
+    
+    try {
+      // Ensure all initialization is complete before handling deep links
+      // This delay helps ensure GoRouter is fully ready
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Now initialize deep links
+      debugPrint('🚀 Initializing deep link service');
+      await ref.read(deepLinkServiceProvider).init();
+      debugPrint('✅ Deep link service initialized successfully');
+    } catch (e) {
+      debugPrint('❌ Error initializing deep links: $e');
+    }
   }
   
   @override

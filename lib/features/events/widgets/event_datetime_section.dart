@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:scompass_07/core/utils/responsive_layout.dart';
 
 class EventDateTimeSection extends StatelessWidget {
   final DateTime startTime;
@@ -58,23 +59,8 @@ class EventDateTimeSection extends StatelessWidget {
                 ],
               ),
               
-              // Add to Calendar Button
-              ElevatedButton.icon(
-                onPressed: onAddToCalendar,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  foregroundColor: theme.colorScheme.onPrimaryContainer,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                icon: const Icon(
-                  Icons.add,
-                  size: 16,
-                ),
-                label: const Text('Add to Calendar'),
-              ),
+              // Add to Calendar Button - Responsive design
+              _buildAddToCalendarButton(context, theme, size)
             ],
           ),
           
@@ -127,6 +113,72 @@ class EventDateTimeSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+  
+  // Helper method to build a responsive Add to Calendar button
+  Widget _buildAddToCalendarButton(BuildContext context, ThemeData theme, Size size) {
+    final isSmallScreen = ResponsiveLayout.isMobile(context);
+    final isVerySmallScreen = size.width < 360; // Extra check for very small screens
+    
+    // For very small screens, show only icon button
+    if (isVerySmallScreen) {
+      return IconButton(
+        onPressed: onAddToCalendar,
+        icon: Icon(
+          Icons.add_circle_outline,
+          color: theme.colorScheme.primary,
+          size: 24,
+        ),
+        tooltip: 'Add to Calendar',
+        constraints: const BoxConstraints(), // Remove default padding
+        padding: const EdgeInsets.all(8),
+      );
+    }
+    
+    // For small screens, use a compact button with smaller text and padding
+    if (isSmallScreen) {
+      return ElevatedButton.icon(
+        onPressed: onAddToCalendar,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: theme.colorScheme.primaryContainer,
+          foregroundColor: theme.colorScheme.onPrimaryContainer,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          minimumSize: const Size(0, 32), // Smaller minimum height
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap, // Tighter hit target
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        icon: const Icon(
+          Icons.add,
+          size: 14,
+        ),
+        label: Text(
+          'Add',
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+    
+    // For larger screens, use the original design
+    return ElevatedButton.icon(
+      onPressed: onAddToCalendar,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: theme.colorScheme.primaryContainer,
+        foregroundColor: theme.colorScheme.onPrimaryContainer,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+      icon: const Icon(
+        Icons.add,
+        size: 16,
+      ),
+      label: const Text('Add to Calendar'),
     );
   }
 }
