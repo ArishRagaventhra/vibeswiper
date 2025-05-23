@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 
 import '../../../config/theme.dart';
 import '../../../core/utils/responsive_layout.dart';
@@ -559,25 +560,8 @@ class _EventBookingScreenState extends ConsumerState<EventBookingScreen> {
 
           const SizedBox(height: 12),
 
-          // Date & Time
-          Row(
-            children: [
-              Icon(
-                Icons.calendar_today_outlined,
-                size: 16,
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${DateFormat('E, MMM d, yyyy').format(event.startTime)} · '
-                '${DateFormat('h:mm a').format(event.startTime)} - '
-                '${DateFormat('h:mm a').format(event.endTime)}',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
-                ),
-              ),
-            ],
-          ),
+          // Date & Time - Check for recurring pattern
+          _buildDateTimeSection(theme, event),
 
           const SizedBox(height: 8),
 
@@ -719,6 +703,219 @@ class _EventBookingScreenState extends ConsumerState<EventBookingScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // Helper method to calculate the first occurrence for recurring patterns
+  String _getFirstOccurrenceText(String patternType, Map<String, dynamic> patternData, Event event) {
+    DateTime firstOccurrence = event.startTime;
+    
+    // Handle weekly pattern special case
+    if (patternType == 'weekly') {
+      // Get selected weekdays
+      final List<dynamic> weekdays = patternData['weekdays'] ?? [];
+      
+      if (weekdays.isNotEmpty) {
+        // Convert weekday names to day numbers (1-7 where 1 is Monday)
+        final Map<String, int> weekdayMap = {
+          'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7
+        };
+        
+        // Get day numbers from weekday strings
+        final List<int> selectedDays = weekdays
+            .map((day) => weekdayMap[day] ?? 0)
+            .where((day) => day > 0)
+            .toList();
+        
+        if (selectedDays.isNotEmpty) {
+          // Get current day of week (1-7)
+          final int startDayOfWeek = event.startTime.weekday;
+          
+          // Find the next selected day
+          int daysToAdd = 0;
+          bool foundDay = false;
+          
+          // Check if current day is selected
+          if (selectedDays.contains(startDayOfWeek)) {
+            foundDay = true;
+          } else {
+            // Find the next closest selected day
+            for (int i = 1; i <= 7; i++) {
+              final int checkDay = (startDayOfWeek + i) > 7 ? 
+                  (startDayOfWeek + i) - 7 : (startDayOfWeek + i);
+              
+              if (selectedDays.contains(checkDay)) {
+                daysToAdd = i;
+                foundDay = true;
+                break;
+              }
+            }
+          }
+          
+          // Calculate first occurrence date
+          if (foundDay) {
+            firstOccurrence = event.startTime.add(Duration(days: daysToAdd));
+          }
+        }
+      }
+    }
+    
+    // Return formatted string with the first occurrence (date only, no time)
+    return '${DateFormat('E, MMM d, yyyy').format(firstOccurrence)}';
+  }
+
+  // Helper method to build the date and time section with recurring pattern support
+  Widget _buildDateTimeSection(ThemeData theme, Event event) {
+    // Check if we have a recurring pattern
+    if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) {
+      try {
+        // Parse the recurring pattern
+        final patternData = json.decode(event.recurringPattern!);
+        final type = patternData['type'] as String? ?? 'none';
+        
+        // Only proceed if we have a valid pattern type that's not 'none'
+        if (type != 'none') {
+          // Choose the appropriate icon and label based on pattern
+          IconData patternIcon;
+          String patternLabel;
+          Color patternColor = theme.colorScheme.primary;
+          
+          switch (type) {
+            case 'daily':
+              patternIcon = Icons.calendar_view_day;
+              patternLabel = 'Daily';
+              patternColor = Colors.blue.shade600;
+              break;
+            case 'weekly':
+              patternIcon = Icons.calendar_view_week;
+              patternLabel = 'Weekly';
+              patternColor = Colors.green.shade600;
+              break;
+            case 'monthly':
+              patternIcon = Icons.calendar_view_month;
+              patternLabel = 'Monthly';
+              patternColor = Colors.purple.shade600;
+              break;
+            default:
+              patternIcon = Icons.repeat;
+              patternLabel = 'Recurring';
+          }
+          
+          // Build the recurring pattern description
+          String patternDesc = '';
+          switch (type) {
+            case 'daily':
+              patternDesc = 'Repeats daily';
+              break;
+            case 'weekly':
+              final weekdays = patternData['weekdays'] as List?;
+              if (weekdays != null && weekdays.isNotEmpty) {
+                patternDesc = 'Repeats weekly on ${weekdays.join(', ')}';
+              } else {
+                patternDesc = 'Repeats weekly';
+              }
+              break;
+            case 'monthly':
+              final dayOfMonth = patternData['dayOfMonth'] as int? ?? event.startTime.day;
+              patternDesc = 'Repeats monthly on day $dayOfMonth';
+              break;
+            case 'custom':
+              patternDesc = 'Custom recurring pattern';
+              break;
+            default:
+              patternDesc = 'Recurring event';
+          }
+          
+          // Add end condition info
+          String endInfo = '';
+          if (patternData.containsKey('endDate')) {
+            final endDate = DateTime.parse(patternData['endDate']);
+            endInfo = ' until ${DateFormat('MMM d, y').format(endDate)}';
+          } else if (patternData.containsKey('occurrences')) {
+            final occurrences = patternData['occurrences'];
+            endInfo = ' for $occurrences occurrences';
+          }
+          
+          // Return the recurring pattern display
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Pattern type with icon
+              Row(
+                children: [
+                  Icon(
+                    patternIcon,
+                    size: 16,
+                    color: patternColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$patternLabel Event',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: patternColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 6),
+              
+              // Pattern description
+              Text(
+                '$patternDesc$endInfo',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+              ),
+              
+              const SizedBox(height: 6),
+              
+              // First occurrence information
+              Row(
+                children: [
+                  Icon(
+                    Icons.event,
+                    size: 14,
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'First occurrence: ${_getFirstOccurrenceText(type, patternData, event)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
+      } catch (e) {
+        print('Error parsing recurring pattern: $e');
+      }
+    }
+    
+    // Fallback to standard date display if no valid recurring pattern
+    return Row(
+      children: [
+        Icon(
+          Icons.calendar_today_outlined,
+          size: 16,
+          color: theme.colorScheme.onSurface.withOpacity(0.7),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '${DateFormat('E, MMM d, yyyy').format(event.startTime)} · '
+            '${DateFormat('h:mm a').format(event.startTime)} - '
+            '${DateFormat('h:mm a').format(event.endTime)}',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

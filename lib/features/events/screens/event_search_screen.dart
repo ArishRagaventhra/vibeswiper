@@ -126,10 +126,6 @@ class _EventSearchScreenState extends ConsumerState<EventSearchScreen> with Sing
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withOpacity(0.5),
-                  width: 1.5,
-                ),
               ),
               child: IconButton(
                 icon: Icon(

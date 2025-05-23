@@ -19,6 +19,7 @@ import '../controllers/event_participant_controller.dart';
 import '../utils/media_upload_test.dart';
 import '../widgets/date_time_picker.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:uuid/uuid.dart';
 import 'package:scompass_07/features/events/widgets/payment_process_dialog.dart';
 import '../widgets/event_contact_form.dart';
@@ -507,7 +508,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'To list your paid event, youll simply pay a standard platform fee of ₹499—no percentage cuts or hidden charges. This ensures a smooth and fair listing process for all organizers. Free events can be listed at no charge!',
+                                          'List your event for free with no upfront costs. We take a 10% commission only after your event, based on total ticket sales. No hidden fees—just a simple way to host and earn with ease.',
                                           style: theme.textTheme.bodyMedium?.copyWith(
                                             color: theme.colorScheme.primary,
                                             height: 1.4,
@@ -640,14 +641,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                   child: Row(
                                     children: [
                                       Icon(
-                                        Icons.info_outline_rounded,
+                                        Icons.star_rounded,
                                         color: theme.colorScheme.primary,
                                         size: 24,
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'To list your event, you’ll simply cover the cost of one attendee’s ticket—no extra fees or hidden charges. This ensures a smooth and fair listing process for all organizers. Plus, free events can be listed at no charge!.',
+                                          'List your event for free with no upfront costs. We take a 10% commission only after your event, based on total ticket sales. No hidden fees—just a simple way to host and earn with ease.',
                                           style: theme.textTheme.bodyMedium?.copyWith(
                                             color: theme.colorScheme.primary,
                                             height: 1.4,
@@ -1143,9 +1144,45 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         // Media data is handled separately
         break;
       case EventCreationStep.dateTime:
+        // Format recurring pattern based on selected option
+        String? recurringPatternJson;
+        if (_recurringPattern != 'none') {
+          Map<String, dynamic> patternData = {
+            'type': _recurringPattern,
+            'startTime': _startTime.toIso8601String(),
+            'endTime': _endTime.toIso8601String(),
+          };
+          
+          // Add pattern-specific data
+          switch (_recurringPattern) {
+            case 'daily':
+              patternData['interval'] = 1; // Every day
+              break;
+            case 'weekly':
+              patternData['weekdays'] = _selectedWeekdays;
+              break;
+            case 'monthly':
+              patternData['dayOfMonth'] = _startTime.day;
+              break;
+            case 'custom':
+              // Additional custom pattern data would go here
+              break;
+          }
+          
+          // Add end condition
+          if (_recurringEndDate != null) {
+            patternData['endDate'] = _recurringEndDate!.toIso8601String();
+          } else {
+            patternData['occurrences'] = _occurrenceCount;
+          }
+          
+          recurringPatternJson = json.encode(patternData);
+        }
+        
         ref.read(eventWizardProvider.notifier).updateFormData({
           'start_time': _startTime.toIso8601String(),
           'end_time': _endTime.toIso8601String(),
+          'recurring_pattern': recurringPatternJson,
         });
         break;
       case EventCreationStep.requirements:
@@ -1230,10 +1267,19 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   }
 
   bool _validateDateTime() {
-    if (_startTime.isBefore(DateTime.now())) {
-      return false;
+    // If a recurring pattern is selected (not 'none'), allow proceeding regardless of time selection
+    if (_recurringPattern != 'none') {
+      // For weekly pattern, ensure at least one weekday is selected
+      if (_recurringPattern == 'weekly' && _selectedWeekdays.isEmpty) {
+        return false;
+      }
+      // For all other recurring patterns, always return true
+      return true;
     }
-    if (_endTime.isBefore(_startTime)) {
+    
+    // For one-time events, only validate that end time is after start time
+    // Don't validate against current time since that can cause issues
+    if (_endTime.isBefore(_startTime) || _endTime == _startTime) {
       return false;
     }
     return true;
@@ -1311,6 +1357,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         organizerName: formData['organizer_name'] ?? '',
         organizerEmail: formData['organizer_email'] ?? '',
         organizerPhone: formData['organizer_phone'] ?? '',
+        recurringPattern: formData['recurring_pattern'],
         requirementsData: {
           'refund_policy': formData['refund_policy'],
           'acceptance_text': formData['acceptance_text'],
@@ -1383,6 +1430,12 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     }
   }
 
+  // Define enum for recurring patterns
+  String? _recurringPattern; // null (nothing selected), daily, weekly, monthly
+  List<String> _selectedWeekdays = [];
+  int _occurrenceCount = 10;
+  DateTime? _recurringEndDate;
+
   Widget _buildDateTimeStep() {
     final theme = Theme.of(context);
     return SingleChildScrollView(
@@ -1416,6 +1469,149 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
+                  
+                  // Recurring Pattern Selection
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Event Frequency',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildPatternChip('Daily', 'daily', theme),
+                              const SizedBox(width: 8),
+                              _buildPatternChip('Weekly', 'weekly', theme),
+                              const SizedBox(width: 8),
+                              _buildPatternChip('Monthly', 'monthly', theme),
+                            ],
+                          ),
+                        ),
+                        
+                        // Show additional options based on selected pattern
+                        if (_recurringPattern != null) ...[  
+                          const SizedBox(height: 20),
+                          const Divider(),
+                          const SizedBox(height: 12),
+                          
+                          // Weekly pattern options
+                          if (_recurringPattern == 'weekly') ...[  
+                            Text(
+                              'Repeat on',
+                              style: theme.textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              children: [
+                                _buildWeekdayChip('Mon', theme),
+                                _buildWeekdayChip('Tue', theme),
+                                _buildWeekdayChip('Wed', theme),
+                                _buildWeekdayChip('Thu', theme),
+                                _buildWeekdayChip('Fri', theme),
+                                _buildWeekdayChip('Sat', theme),
+                                _buildWeekdayChip('Sun', theme),
+                              ],
+                            ),
+                          ],
+                          
+                          // Monthly pattern options
+                          if (_recurringPattern == 'monthly') ...[  
+                            Text(
+                              'Repeats on day ${_startTime.day} of each month',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
+                          
+                          const SizedBox(height: 16),
+                          
+                          // End condition for recurring events
+                          Row(
+                            children: [
+                              Expanded(
+                                child: RadioListTile<bool>(
+                                  title: Text('End after', style: theme.textTheme.bodyMedium),
+                                  value: _recurringEndDate == null,
+                                  groupValue: true,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _recurringEndDate = null;
+                                    });
+                                  },
+                                  contentPadding: EdgeInsets.zero,
+                                  dense: true,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 50,
+                                child: TextField(
+                                  keyboardType: TextInputType.number,
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    border: OutlineInputBorder(),
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  ),
+                                  controller: TextEditingController(text: _occurrenceCount.toString()),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _occurrenceCount = int.tryParse(value) ?? 10;
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text('occurrences', style: theme.textTheme.bodyMedium),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          RadioListTile<bool>(
+                            title: Text('End by specific date', style: theme.textTheme.bodyMedium),
+                            value: _recurringEndDate != null,
+                            groupValue: true,
+                            onChanged: (value) async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: _recurringEndDate ?? _startTime.add(const Duration(days: 30)),
+                                firstDate: _startTime,
+                                lastDate: _startTime.add(const Duration(days: 365)),
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  _recurringEndDate = picked;
+                                });
+                              }
+                            },
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                          ),
+                          if (_recurringEndDate != null)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 32.0),
+                              child: Text(
+                                '${_recurringEndDate!.day}/${_recurringEndDate!.month}/${_recurringEndDate!.year}',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
                   DateTimePicker(
                     initialStartDate: _startTime,
                     initialEndDate: _endTime,
@@ -1433,6 +1629,71 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         ],
       ),
     );
+  }
+  
+  Widget _buildPatternChip(String label, String pattern, ThemeData theme) {
+    final isSelected = _recurringPattern == pattern;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          _recurringPattern = pattern;
+          if (pattern == 'weekly' && _selectedWeekdays.isEmpty) {
+            // Default to the weekday of the selected start date
+            final weekday = _getDayAbbreviation(_startTime.weekday);
+            _selectedWeekdays = [weekday];
+          }
+        });
+      },
+      backgroundColor: isSelected ? theme.colorScheme.primary.withOpacity(0.1) : null,
+      selectedColor: theme.colorScheme.primary.withOpacity(0.2),
+      checkmarkColor: theme.colorScheme.primary,
+      labelStyle: TextStyle(
+        color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+    );
+  }
+  
+  Widget _buildWeekdayChip(String day, ThemeData theme) {
+    final isSelected = _selectedWeekdays.contains(day);
+    return FilterChip(
+      label: Text(day),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          if (selected) {
+            _selectedWeekdays.add(day);
+          } else {
+            // Don't remove the last weekday
+            if (_selectedWeekdays.length > 1) {
+              _selectedWeekdays.remove(day);
+            }
+          }
+        });
+      },
+      backgroundColor: theme.colorScheme.surfaceVariant,
+      selectedColor: theme.colorScheme.primary.withOpacity(0.2),
+      checkmarkColor: theme.colorScheme.primary,
+      labelStyle: TextStyle(
+        color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+    );
+  }
+  
+  String _getDayAbbreviation(int weekday) {
+    switch (weekday) {
+      case 1: return 'Mon';
+      case 2: return 'Tue';
+      case 3: return 'Wed';
+      case 4: return 'Thu';
+      case 5: return 'Fri';
+      case 6: return 'Sat';
+      case 7: return 'Sun';
+      default: return 'Mon';
+    }
   }
 
   Widget _buildLocationDetailsStep() {

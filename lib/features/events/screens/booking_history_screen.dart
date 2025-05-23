@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/responsive_scaffold.dart';
 import '../controllers/booking_history_controller.dart';
@@ -189,9 +190,86 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
     final paymentStatus = booking['payment_status'] as String;
     final theme = Theme.of(context);
     
-    // Format dates
+    // Check for recurring pattern first
     String? eventDateStr;
-    if (event['start_date'] != null) {
+    bool hasRecurringPattern = false;
+    Map<String, dynamic> patternInfo = {};
+    
+    // Check if event has a recurring pattern
+    if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty) {
+      try {
+        final patternData = json.decode(event['recurring_pattern']);
+        final type = patternData['type'] as String? ?? 'none';
+        
+        if (type != 'none') {
+          hasRecurringPattern = true;
+          patternInfo = _getRecurringPatternInfo(event['recurring_pattern']);
+          
+          // Format date string differently for recurring events - show only date without time
+          if (event['start_date'] != null) {
+            var eventDate = DateTime.parse(event['start_date']);
+            
+            // For weekly patterns, adjust first occurrence date to match the selected weekday
+            if (type == 'weekly' && patternData['weekdays'] != null) {
+              final List<dynamic> weekdays = patternData['weekdays'];
+              if (weekdays.isNotEmpty) {
+                // Convert weekday names to day numbers (1-7 where 1 is Monday)
+                final Map<String, int> weekdayMap = {
+                  'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7
+                };
+                
+                // Get day numbers from weekday strings
+                final List<int> selectedDays = weekdays
+                    .map((day) => weekdayMap[day] ?? 0)
+                    .where((day) => day > 0)
+                    .toList();
+                
+                if (selectedDays.isNotEmpty) {
+                  // Get current day of week (1-7)
+                  final int startDayOfWeek = eventDate.weekday;
+                  
+                  // Find the next selected day
+                  int daysToAdd = 0;
+                  bool foundDay = false;
+                  
+                  // Check if current day is selected
+                  if (selectedDays.contains(startDayOfWeek)) {
+                    foundDay = true;
+                  } else {
+                    // Find the next closest selected day
+                    for (int i = 1; i <= 7; i++) {
+                      final int checkDay = (startDayOfWeek + i) > 7 ? 
+                          (startDayOfWeek + i) - 7 : (startDayOfWeek + i);
+                      
+                      if (selectedDays.contains(checkDay)) {
+                        daysToAdd = i;
+                        foundDay = true;
+                        break;
+                      }
+                    }
+                  }
+                  
+                  // Calculate first occurrence date
+                  if (foundDay) {
+                    eventDate = eventDate.add(Duration(days: daysToAdd));
+                  }
+                }
+              }
+            }
+            
+            eventDateStr = '${patternInfo['label']} • ${DateFormat('E, MMM d, yyyy').format(eventDate)}';
+          } else {
+            eventDateStr = patternInfo['label'];
+          }
+        }
+      } catch (e) {
+        // If parsing fails, use standard formatting
+        hasRecurringPattern = false;
+      }
+    }
+    
+    // Use standard date formatting if no recurring pattern
+    if (!hasRecurringPattern && event['start_date'] != null) {
       final eventDate = DateTime.parse(event['start_date']);
       final now = DateTime.now();
       final isToday = eventDate.year == now.year && 
@@ -255,13 +333,44 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
                         ),
                         if (eventDateStr != null) ...[  
                           const SizedBox(height: 2), // Reduced spacing
-                          Text(
-                            eventDateStr,
-                            style: TextStyle(
-                              fontSize: 12, // Smaller font
-                              color: isDarkMode ? Colors.grey : Colors.black54,
+                          hasRecurringPattern
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: patternInfo['color'].withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: patternInfo['color'].withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    patternInfo['icon'],
+                                    size: 12,
+                                    color: patternInfo['color'],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    eventDateStr ?? patternInfo['label'],
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: patternInfo['color'],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : Text(
+                              eventDateStr ?? 'Date not specified',
+                              style: TextStyle(
+                                fontSize: 12, // Smaller font
+                                color: isDarkMode ? Colors.grey : Colors.black54,
+                              ),
                             ),
-                          ),
                         ],
                         const SizedBox(height: 2), // Reduced spacing
                         Text(
@@ -405,6 +514,56 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
       return 'Pending';
     } else {
       return 'Processing';
+    }
+  }
+  
+  // Helper method to get recurring pattern display info
+  Map<String, dynamic> _getRecurringPatternInfo(String patternJson) {
+    try {
+      final Map<String, dynamic> result = {
+        'hasPattern': false,
+        'icon': Icons.calendar_today,
+        'label': '',
+        'color': Colors.grey,
+      };
+      
+      final patternData = json.decode(patternJson);
+      final type = patternData['type'] as String? ?? 'none';
+      
+      if (type == 'none') return result;
+      
+      result['hasPattern'] = true;
+      
+      switch (type) {
+        case 'daily':
+          result['icon'] = Icons.calendar_view_day;
+          result['label'] = 'Daily';
+          result['color'] = Colors.blue;
+          break;
+        case 'weekly':
+          result['icon'] = Icons.calendar_view_week;
+          result['label'] = 'Weekly';
+          result['color'] = Colors.green;
+          break;
+        case 'monthly':
+          result['icon'] = Icons.calendar_view_month;
+          result['label'] = 'Monthly';
+          result['color'] = Colors.purple;
+          break;
+        default:
+          result['icon'] = Icons.repeat;
+          result['label'] = 'Recurring';
+          result['color'] = Colors.orange;
+      }
+      
+      return result;
+    } catch (e) {
+      return {
+        'hasPattern': false,
+        'icon': Icons.calendar_today,
+        'label': '',
+        'color': Colors.grey,
+      };
     }
   }
 }

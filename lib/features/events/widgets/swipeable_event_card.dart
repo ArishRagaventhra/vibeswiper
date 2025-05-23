@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:scompass_07/features/events/models/event_model.dart';
 import 'dart:math' as math;
+import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:scompass_07/config/theme.dart';
+import 'package:intl/intl.dart';
 
 class SwipeableEventCard extends StatefulWidget {
   final Event event;
@@ -267,6 +269,98 @@ class _SwipeableEventCardState extends State<SwipeableEventCard>
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
   }
+  
+  Widget _buildDateOrRecurringInfo(BuildContext context) {
+    // Check if we have a recurring pattern
+    if (widget.event.recurringPattern != null && widget.event.recurringPattern!.isNotEmpty) {
+      try {
+        // Parse the recurring pattern
+        final patternData = json.decode(widget.event.recurringPattern!);
+        final type = patternData['type'] as String? ?? 'none';
+        
+        // Only proceed if we have a valid pattern type that's not 'none'
+        if (type != 'none') {
+          // Choose the appropriate icon and label based on pattern
+          IconData patternIcon;
+          String patternLabel;
+          Color patternColor = Colors.white;
+          
+          switch (type) {
+            case 'daily':
+              patternIcon = Icons.calendar_view_day;
+              patternLabel = 'Daily';
+              patternColor = Colors.blue.shade300;
+              break;
+            case 'weekly':
+              patternIcon = Icons.calendar_view_week;
+              patternLabel = 'Weekly';
+              patternColor = Colors.green.shade300;
+              break;
+            case 'monthly':
+              patternIcon = Icons.calendar_view_month;
+              patternLabel = 'Monthly';
+              patternColor = Colors.purple.shade300;
+              break;
+            default:
+              patternIcon = Icons.repeat;
+              patternLabel = 'Recurring';
+          }
+          
+          // Return the recurring pattern indicator
+          return Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: patternColor.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      patternIcon,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      patternLabel,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+      } catch (e) {
+        // If there's an error parsing the pattern, fall back to standard date display
+        debugPrint('Error parsing recurring pattern: $e');
+      }
+    }
+    
+    // Fall back to standard date display if no valid recurring pattern
+    return Row(
+      children: [
+        Icon(
+          Icons.calendar_today_outlined,
+          color: Colors.white,
+          size: 16,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          _formatDate(widget.event.startTime),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildEventImage() {
     debugPrint('Event ID: ${widget.event.id}');
@@ -383,18 +477,7 @@ class _SwipeableEventCardState extends State<SwipeableEventCard>
                         ),
                       ],
                       const SizedBox(width: 16),
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatDate(widget.event.startTime),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white,
-                        ),
-                      ),
+                      _buildDateOrRecurringInfo(context),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -405,7 +488,7 @@ class _SwipeableEventCardState extends State<SwipeableEventCard>
                         decoration: BoxDecoration(
                           color: widget.event.eventType == EventType.free 
                             ? Colors.green.withOpacity(0.8)
-                            : Colors.blue.withOpacity(0.8),
+                            : Color(0xFFDAA520).withOpacity(0.8), // Gold color for PAID events
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(

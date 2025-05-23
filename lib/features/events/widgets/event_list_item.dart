@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 import '../models/event_model.dart';
 
 class EventListItem extends StatelessWidget {
@@ -17,6 +18,107 @@ class EventListItem extends StatelessWidget {
 
   String _formatDateTime(DateTime dateTime) {
     return DateFormat('MMM d, y • h:mm a').format(dateTime);
+  }
+  
+  // Helper method to get recurring pattern display info
+  Map<String, dynamic> _getRecurringPatternInfo(String patternJson) {
+    try {
+      final Map<String, dynamic> result = {
+        'hasPattern': false,
+        'icon': Icons.calendar_today,
+        'label': '',
+        'color': Colors.grey,
+        'firstOccurrence': event.startTime,
+        'patternData': null,
+      };
+      
+      final patternData = json.decode(patternJson);
+      final type = patternData['type'] as String? ?? 'none';
+      
+      if (type == 'none') return result;
+      
+      result['hasPattern'] = true;
+      result['patternData'] = patternData;
+      
+      // Calculate first occurrence date for weekly patterns
+      if (type == 'weekly' && patternData['weekdays'] != null) {
+        final List<dynamic> weekdays = patternData['weekdays'];
+        if (weekdays.isNotEmpty) {
+          // Convert weekday names to day numbers (1-7 where 1 is Monday)
+          final Map<String, int> weekdayMap = {
+            'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7
+          };
+          
+          // Get day numbers from weekday strings
+          final List<int> selectedDays = weekdays
+              .map((day) => weekdayMap[day.toString()] ?? 0)
+              .where((day) => day > 0)
+              .toList();
+          
+          if (selectedDays.isNotEmpty) {
+            // Get current day of week (1-7)
+            final int startDayOfWeek = event.startTime.weekday;
+            
+            // Find the next selected day
+            int daysToAdd = 0;
+            bool foundDay = false;
+            
+            // Check if current day is selected
+            if (selectedDays.contains(startDayOfWeek)) {
+              foundDay = true;
+            } else {
+              // Find the next closest selected day
+              for (int i = 1; i <= 7; i++) {
+                final int checkDay = (startDayOfWeek + i) > 7 ? 
+                    (startDayOfWeek + i) - 7 : (startDayOfWeek + i);
+                
+                if (selectedDays.contains(checkDay)) {
+                  daysToAdd = i;
+                  foundDay = true;
+                  break;
+                }
+              }
+            }
+            
+            // Calculate first occurrence date
+            if (foundDay && daysToAdd > 0) {
+              result['firstOccurrence'] = event.startTime.add(Duration(days: daysToAdd));
+            }
+          }
+        }
+      }
+      
+      switch (type) {
+        case 'daily':
+          result['icon'] = Icons.calendar_view_day;
+          result['label'] = 'Daily';
+          result['color'] = Colors.blue;
+          break;
+        case 'weekly':
+          result['icon'] = Icons.calendar_view_week;
+          result['label'] = 'Weekly';
+          result['color'] = Colors.green;
+          break;
+        case 'monthly':
+          result['icon'] = Icons.calendar_view_month;
+          result['label'] = 'Monthly';
+          result['color'] = Colors.purple;
+          break;
+        default:
+          result['icon'] = Icons.repeat;
+          result['label'] = 'Recurring';
+          result['color'] = Colors.orange;
+      }
+      
+      return result;
+    } catch (e) {
+      return {
+        'hasPattern': false,
+        'icon': Icons.calendar_today,
+        'label': '',
+        'color': Colors.grey,
+      };
+    }
   }
 
   String _getTimeUntilEvent(DateTime eventDate) {
@@ -48,8 +150,7 @@ class EventListItem extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       elevation: 0, // Removing elevation for a cleaner look
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outlineVariant.withOpacity(0.5), width: 1)
+        borderRadius: BorderRadius.circular(16)
       ),
       child: InkWell(
         onTap: onTap ?? () => context.go('/events/${event.id}'),
@@ -111,14 +212,27 @@ class EventListItem extends StatelessWidget {
                       color: Colors.red.shade500,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      _getTimeUntilEvent(event.startTime),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
+                    child: Builder(builder: (context) {
+                      // Check if we need to use a different date for recurring events
+                      DateTime dateToUse = event.startTime;
+                      
+                      // If this is a recurring event, use the calculated first occurrence date
+                      if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) {
+                        final patternInfo = _getRecurringPatternInfo(event.recurringPattern!);
+                        if (patternInfo['hasPattern'] && patternInfo.containsKey('firstOccurrence')) {
+                          dateToUse = patternInfo['firstOccurrence'];
+                        }
+                      }
+                      
+                      return Text(
+                        _getTimeUntilEvent(dateToUse),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      );
+                    }),
                   ),
                 ],
               ),
@@ -190,28 +304,76 @@ class EventListItem extends StatelessWidget {
               
               const SizedBox(height: 12),
               
-              // Event details in compact format
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_today,
-                    size: 12,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      _formatDateTime(event.startTime),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 10,
+              // Event details in compact format - Check for recurring pattern
+              Builder(builder: (context) {
+                // Check if we have a recurring pattern
+                if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) {
+                  final patternInfo = _getRecurringPatternInfo(event.recurringPattern!);
+                  if (patternInfo['hasPattern']) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: patternInfo['color'].withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: patternInfo['color'].withOpacity(0.3),
+                          width: 1,
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            patternInfo['icon'],
+                            size: 12,
+                            color: patternInfo['color'],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            patternInfo['label'],
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
+                              color: patternInfo['color'],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'from ${DateFormat('E, MMM d').format(patternInfo['firstOccurrence'])}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontSize: 9,
+                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                }
+                
+                // Default date display if no recurring pattern
+                return Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      size: 12,
+                      color: theme.colorScheme.primary,
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _formatDateTime(event.startTime),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 10,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                );
+              }),
               
               if (event.location != null) ...[                        
                 const SizedBox(height: 6),
@@ -297,7 +459,13 @@ class EventListItem extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: _getStatusPillColor(event.startTime, event.status).withOpacity(0.9),
+                      // Use the appropriate date for status color calculations
+                      color: _getStatusPillColor(
+                        event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                            ? _getRecurringPatternInfo(event.recurringPattern!)['firstOccurrence']
+                            : event.startTime,
+                        event.status
+                      ).withOpacity(0.9),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
@@ -308,7 +476,12 @@ class EventListItem extends StatelessWidget {
                       ],
                     ),
                     child: Text(
-                      _getTimeUntilEvent(event.startTime),
+                      // Use the first occurrence date for time remaining calculation
+                      _getTimeUntilEvent(
+                        event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                            ? _getRecurringPatternInfo(event.recurringPattern!)['firstOccurrence']
+                            : event.startTime
+                      ),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -408,6 +581,7 @@ class EventListItem extends StatelessWidget {
                   children: [
                     Row(
                       children: [
+                        // Use appropriate icon for calendar based on whether event is recurring
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -415,9 +589,13 @@ class EventListItem extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
-                            Icons.calendar_today,
+                            event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                              ? _getRecurringPatternInfo(event.recurringPattern!)['icon']
+                              : Icons.calendar_today,
                             size: 16,
-                            color: theme.colorScheme.primary,
+                            color: event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                              ? _getRecurringPatternInfo(event.recurringPattern!)['color']
+                              : theme.colorScheme.primary,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -425,20 +603,56 @@ class EventListItem extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Show 'Recurring Event' or 'Date & Time' based on pattern
                               Text(
-                                'Date & Time',
+                                event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                  ? 'Recurring Event'
+                                  : 'Date & Time',
                                 style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.primary,
+                                  color: event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                    ? _getRecurringPatternInfo(event.recurringPattern!)['color']
+                                    : theme.colorScheme.primary,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
                               const SizedBox(height: 2),
-                              Text(
-                                _formatDateTime(event.startTime),
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w500,
+                              // Show pattern label + date or just the formatted date
+                              if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) ...[                                
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      margin: const EdgeInsets.only(right: 6),
+                                      decoration: BoxDecoration(
+                                        color: _getRecurringPatternInfo(event.recurringPattern!)['color'].withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        _getRecurringPatternInfo(event.recurringPattern!)['label'],
+                                        style: theme.textTheme.labelSmall?.copyWith(
+                                          color: _getRecurringPatternInfo(event.recurringPattern!)['color'],
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        _formatDateTime(_getRecurringPatternInfo(event.recurringPattern!)['firstOccurrence']),
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
+                              ] else ...[                              
+                                Text(
+                                  _formatDateTime(event.startTime),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

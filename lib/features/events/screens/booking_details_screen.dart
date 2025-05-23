@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:file_saver/file_saver.dart';
+import 'dart:convert';
 import '../controllers/booking_history_controller.dart';
 import '../../../config/theme.dart';
 import '../../../config/routes.dart';
@@ -344,6 +345,9 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     DateTime? eventStartDate;
     DateTime? eventEndDate;
     String formattedEventDate;
+    bool isRecurringEvent = false;
+    IconData dateTimeIcon = Icons.calendar_today;
+    Color dateTimeIconColor = theme.primaryColor;
 
     try {
       // Safely parse start date if available - checking for all possible field names
@@ -367,21 +371,70 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         eventEndDate = DateTime.parse(event['end_datetime']);
       }
 
-      // Format dates with proper null checks
-      if (eventStartDate != null) {
-        if (eventEndDate != null) {
-          formattedEventDate =
-          '${DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(
-              eventStartDate)} to ${DateFormat('hh:mm a').format(
-              eventEndDate)}';
-        } else {
-          formattedEventDate =
-              DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(eventStartDate);
+      // Check if the event has a recurring pattern
+      if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty) {
+        isRecurringEvent = true;
+        // Format the recurring pattern information
+        formattedEventDate = _formatRecurringPattern(
+          event['recurring_pattern'], 
+          eventStartDate ?? DateTime.now(),
+          eventEndDate
+        );
+        
+        // Set the appropriate icon based on pattern type
+        try {
+          final patternData = json.decode(event['recurring_pattern']);
+          final type = patternData['type'] as String? ?? 'none';
+          
+          switch (type) {
+            case 'daily':
+              dateTimeIcon = Icons.calendar_view_day;
+              dateTimeIconColor = Colors.blue;
+              break;
+            case 'weekly':
+              dateTimeIcon = Icons.calendar_view_week;
+              dateTimeIconColor = Colors.green;
+              break;
+            case 'monthly':
+              dateTimeIcon = Icons.calendar_view_month;
+              dateTimeIconColor = Colors.purple;
+              break;
+            default:
+              dateTimeIcon = Icons.repeat;
+              dateTimeIconColor = Colors.orange;
+          }
+        } catch (e) {
+          debugPrint('Error parsing recurring pattern type: $e');
+          dateTimeIcon = Icons.repeat;
+          dateTimeIconColor = theme.colorScheme.primary;
+        }
+        
+        // Add time information to the recurring pattern
+        if (eventStartDate != null) {
+          String timeStr = DateFormat('hh:mm a').format(eventStartDate);
+          if (eventEndDate != null) {
+            timeStr += ' to ${DateFormat('hh:mm a').format(eventEndDate)}';
+          }
+          formattedEventDate += '\nTime: $timeStr';
         }
       } else {
-        formattedEventDate = 'Date not specified';
+        // Standard date formatting for non-recurring events
+        if (eventStartDate != null) {
+          if (eventEndDate != null) {
+            formattedEventDate =
+            '${DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(
+                eventStartDate)} to ${DateFormat('hh:mm a').format(
+                eventEndDate)}';
+          } else {
+            formattedEventDate =
+                DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(eventStartDate);
+          }
+        } else {
+          formattedEventDate = 'Date not specified';
+        }
       }
     } catch (e) {
+      debugPrint('Error parsing event date: $e');
       // Fallback if date parsing fails
       formattedEventDate = 'Date information unavailable';
     }
@@ -450,16 +503,70 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  formattedEventDate,
-                  style: Theme
-                      .of(context)
-                      .textTheme
-                      .bodyMedium!
-                      .copyWith(
-                    color: Colors.white.withOpacity(0.9),
+                // Date display with enhanced visual indicators for recurring events
+                if (isRecurringEvent) ...[  
+                  Row(
+                    children: [
+                      Icon(
+                        dateTimeIcon,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: dateTimeIconColor.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+                        ),
+                        child: Text(
+                          'Recurring',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  Text(
+                    formattedEventDate,
+                    style: Theme
+                        .of(context)
+                        .textTheme
+                        .bodyMedium!
+                        .copyWith(
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ] else ...[
+                  // Standard date display for regular events
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          formattedEventDate,
+                          style: Theme
+                              .of(context)
+                              .textTheme
+                              .bodyMedium!
+                              .copyWith(
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -590,7 +697,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      _buildDetailRow(context, 'Date', formattedBookingDate),
+                      _buildDetailRow(context, 'Booking Date', formattedBookingDate),
                       _buildDetailRow(
                           context, 'Quantity', '${booking['quantity']}'),
                       _buildDetailRow(context, 'Price per ticket',
@@ -837,19 +944,19 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         bool isHighlighted = false,
         Color? valueColor,
         IconData? icon,
+        bool isRecurring = false,
       }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          if (icon != null) ...[
+          if (icon != null) ...[  
             Icon(
               icon,
               size: 18,
-              color: Theme
-                  .of(context)
-                  .primaryColor
-                  .withOpacity(0.7),
+              color: isRecurring
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).primaryColor.withOpacity(0.7),
             ),
             const SizedBox(width: 8),
           ],
@@ -861,12 +968,10 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                   .textTheme
                   .bodyMedium!
                   .copyWith(
-                color: Theme
-                    .of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.color
-                    ?.withOpacity(0.8),
+                color: isRecurring
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8),
+                fontWeight: isRecurring ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ),
@@ -879,12 +984,10 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                   .textTheme
                   .bodyMedium!
                   .copyWith(
-                fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
-                color: valueColor ?? Theme
-                    .of(context)
-                    .textTheme
-                    .bodyLarge
-                    ?.color,
+                fontWeight: isHighlighted || isRecurring ? FontWeight.bold : FontWeight.normal,
+                color: valueColor ?? (isRecurring 
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).textTheme.bodyLarge?.color),
               ),
               textAlign: TextAlign.end,
             ),
@@ -892,6 +995,112 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         ],
       ),
     );
+  }
+
+  String _formatRecurringPattern(String patternJson, DateTime startDate, DateTime? endDate) {
+    try {
+      final patternData = json.decode(patternJson);
+      final type = patternData['type'] as String? ?? 'none';
+      
+      if (type == 'none') {
+        // Fallback to regular date format if pattern type is none
+        return DateFormat('EEE, MMM dd, yyyy').format(startDate);
+      }
+      
+      // Adjust first occurrence date for weekly patterns
+      DateTime firstOccurrence = startDate;
+      if (type == 'weekly') {
+        final weekdays = patternData['weekdays'] as List?;
+        if (weekdays != null && weekdays.isNotEmpty) {
+          // Convert weekday names to day numbers (1-7 where 1 is Monday)
+          final Map<String, int> weekdayMap = {
+            'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7
+          };
+          
+          // Get day numbers from weekday strings
+          final List<int> selectedDays = weekdays
+              .map((day) => weekdayMap[day.toString()] ?? 0)
+              .where((day) => day > 0)
+              .toList();
+          
+          if (selectedDays.isNotEmpty) {
+            // Get current day of week (1-7)
+            final int startDayOfWeek = startDate.weekday;
+            
+            // Find the next selected day
+            int daysToAdd = 0;
+            bool foundDay = false;
+            
+            // Check if current day is selected
+            if (selectedDays.contains(startDayOfWeek)) {
+              foundDay = true;
+            } else {
+              // Find the next closest selected day
+              for (int i = 1; i <= 7; i++) {
+                final int checkDay = (startDayOfWeek + i) > 7 ? 
+                    (startDayOfWeek + i) - 7 : (startDayOfWeek + i);
+                
+                if (selectedDays.contains(checkDay)) {
+                  daysToAdd = i;
+                  foundDay = true;
+                  break;
+                }
+              }
+            }
+            
+            // Calculate first occurrence date
+            if (foundDay && daysToAdd > 0) {
+              firstOccurrence = startDate.add(Duration(days: daysToAdd));
+            }
+          }
+        }
+      }
+      
+      // Build the recurring pattern description
+      String patternDesc = '';
+      switch (type) {
+        case 'daily':
+          patternDesc = 'Repeats daily';
+          break;
+        case 'weekly':
+          final weekdays = patternData['weekdays'] as List?;
+          if (weekdays != null && weekdays.isNotEmpty) {
+            patternDesc = 'Repeats weekly on ${weekdays.join(', ')}';
+          } else {
+            patternDesc = 'Repeats weekly';
+          }
+          break;
+        case 'monthly':
+          final dayOfMonth = patternData['dayOfMonth'] as int? ?? startDate.day;
+          patternDesc = 'Repeats monthly on day $dayOfMonth';
+          break;
+        case 'custom':
+          patternDesc = 'Custom recurring pattern';
+          break;
+        default:
+          patternDesc = 'Recurring event';
+      }
+      
+      // Add end condition
+      String endInfo = '';
+      if (patternData.containsKey('endDate')) {
+        final endDate = DateTime.parse(patternData['endDate']);
+        endInfo = ' until ${DateFormat('MMM d, y').format(endDate)}';
+      } else if (patternData.containsKey('occurrences')) {
+        final occurrences = patternData['occurrences'];
+        endInfo = ' for $occurrences occurrences';
+      }
+      
+      // Combine all information without time - just the pattern and first occurrence date
+      String result = '$patternDesc$endInfo';
+      result += '\nFirst occurrence: ${DateFormat('E, MMM d, yyyy').format(firstOccurrence)}';
+      
+      return result;
+    } catch (e) {
+      debugPrint('Error formatting recurring pattern: $e');
+      // Fallback to standard date format
+      return DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(startDate);
+    }
   }
 
   Color _getStatusColor(String paymentStatus, String bookingStatus) {
@@ -1328,15 +1537,98 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   // Build the vertical ticket widget with the primary gradient
   Widget _buildTicketWidget(BuildContext context, Map<String, dynamic> event, 
       Map<String, dynamic> booking, Map<String, dynamic> user, String ticketNumber) {
-    // Format dates
+    // Format dates - with recurring pattern support
     String formattedEventDate = 'Date not specified';
     String formattedTime = '8:00 p.m.';
+    bool isRecurringEvent = false;
+    
     try {
-      final startDatetime = event['start_datetime'] as String?;
-      if (startDatetime != null) {
-        final dateTime = DateTime.parse(startDatetime);
-        formattedEventDate = DateFormat('MMM dd, yyyy').format(dateTime);
-        formattedTime = DateFormat('h:mm a').format(dateTime);
+      // Get the start date from any of the possible field names
+      DateTime? eventStartDate;
+      if (event['start_time'] != null) {
+        eventStartDate = DateTime.parse(event['start_time']);
+      } else if (event['start_date'] != null) {
+        eventStartDate = DateTime.parse(event['start_date']);
+      } else if (event['start_datetime'] != null) {
+        eventStartDate = DateTime.parse(event['start_datetime']);
+      }
+      
+      // Check if this is a recurring event
+      if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty && eventStartDate != null) {
+        isRecurringEvent = true;
+        
+        // Parse the recurring pattern to get the correct first occurrence date
+        try {
+          final patternData = json.decode(event['recurring_pattern']);
+          final type = patternData['type'] as String? ?? 'none';
+          
+          // Special handling for weekly patterns to calculate the first occurrence
+          if (type == 'weekly' && patternData['weekdays'] != null) {
+            final List<dynamic> weekdays = patternData['weekdays'];
+            if (weekdays.isNotEmpty) {
+              // Convert weekday names to day numbers (1-7 where 1 is Monday)
+              final Map<String, int> weekdayMap = {
+                'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7
+              };
+              
+              // Get day numbers from weekday strings
+              final List<int> selectedDays = weekdays
+                  .map((day) => weekdayMap[day.toString()] ?? 0)
+                  .where((day) => day > 0)
+                  .toList();
+              
+              if (selectedDays.isNotEmpty) {
+                // Get current day of week (1-7)
+                final int startDayOfWeek = eventStartDate.weekday;
+                
+                // Find the next selected day
+                int daysToAdd = 0;
+                bool foundDay = false;
+                
+                // Check if current day is selected
+                if (selectedDays.contains(startDayOfWeek)) {
+                  foundDay = true;
+                } else {
+                  // Find the next closest selected day
+                  for (int i = 1; i <= 7; i++) {
+                    final int checkDay = (startDayOfWeek + i) > 7 ? 
+                        (startDayOfWeek + i) - 7 : (startDayOfWeek + i);
+                    
+                    if (selectedDays.contains(checkDay)) {
+                      daysToAdd = i;
+                      foundDay = true;
+                      break;
+                    }
+                  }
+                }
+                
+                // Calculate first occurrence date
+                if (foundDay && daysToAdd > 0) {
+                  eventStartDate = eventStartDate.add(Duration(days: daysToAdd));
+                }
+              }
+            }
+          }
+          
+          // Format the date and time using the calculated first occurrence
+          if (eventStartDate != null) {
+            formattedEventDate = DateFormat('MMM dd, yyyy').format(eventStartDate!);
+            formattedTime = DateFormat('h:mm a').format(eventStartDate!);
+          }
+          
+        } catch (e) {
+          debugPrint('Error parsing recurring pattern: $e');
+          // Fallback to standard formatting if there's an error
+          if (eventStartDate != null) {
+            formattedEventDate = DateFormat('MMM dd, yyyy').format(eventStartDate!);
+            formattedTime = DateFormat('h:mm a').format(eventStartDate!);
+          }
+        }
+      } else if (eventStartDate != null) {
+        // Standard date formatting for non-recurring events
+        // At this point, we know eventStartDate is not null, so we use the null assertion operator (!)
+        formattedEventDate = DateFormat('MMM dd, yyyy').format(eventStartDate!);
+        formattedTime = DateFormat('h:mm a').format(eventStartDate!);
       }
     } catch (e) {
       debugPrint('Error formatting event date: $e');
@@ -1761,6 +2053,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     DateTime? eventStartDate;
     DateTime? eventEndDate;
     String formattedEventDate;
+    bool isRecurringEvent = false;
 
     try {
       // Safely parse start date if available - checking for all possible field names
@@ -1784,21 +2077,42 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         eventEndDate = DateTime.parse(event['end_datetime']);
       }
 
-      // Format dates with proper null checks
-      if (eventStartDate != null) {
-        if (eventEndDate != null) {
-          formattedEventDate =
-          '${DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(
-              eventStartDate)} to ${DateFormat('hh:mm a').format(
-              eventEndDate)}';
-        } else {
-          formattedEventDate =
-              DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(eventStartDate);
+      // Check if the event has a recurring pattern
+      if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty) {
+        isRecurringEvent = true;
+        // Format the recurring pattern information
+        formattedEventDate = _formatRecurringPattern(
+          event['recurring_pattern'], 
+          eventStartDate ?? DateTime.now(),
+          eventEndDate
+        );
+        
+        // Add time information to the recurring pattern
+        if (eventStartDate != null) {
+          String timeStr = DateFormat('hh:mm a').format(eventStartDate);
+          if (eventEndDate != null) {
+            timeStr += ' to ${DateFormat('hh:mm a').format(eventEndDate)}';
+          }
+          formattedEventDate += '\nTime: $timeStr';
         }
       } else {
-        formattedEventDate = 'Date not specified';
+        // Standard date formatting for non-recurring events
+        if (eventStartDate != null) {
+          if (eventEndDate != null) {
+            formattedEventDate =
+            '${DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(
+                eventStartDate)} to ${DateFormat('hh:mm a').format(
+                eventEndDate)}';
+          } else {
+            formattedEventDate =
+                DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(eventStartDate);
+          }
+        } else {
+          formattedEventDate = 'Date not specified';
+        }
       }
     } catch (e) {
+      debugPrint('Error parsing event date: $e');
       // Fallback if date parsing fails
       formattedEventDate = 'Date information unavailable';
     }
@@ -1819,7 +2133,8 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
           context,
           'Date & Time',
           formattedEventDate,
-          icon: Icons.access_time,
+          icon: isRecurringEvent ? Icons.repeat : Icons.access_time,
+          isRecurring: isRecurringEvent,
         ),
 
         // Organizer
