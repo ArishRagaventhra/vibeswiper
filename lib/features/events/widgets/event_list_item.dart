@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
+import 'dart:ui';
 import '../models/event_model.dart';
+import '../utils/recurring_event_utils.dart';
 
 class EventListItem extends StatelessWidget {
   final Event event;
@@ -16,115 +18,62 @@ class EventListItem extends StatelessWidget {
     this.isGridView = false,
   }) : super(key: key);
 
-  String _formatDateTime(DateTime dateTime) {
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return 'Date TBD';
     return DateFormat('MMM d, y • h:mm a').format(dateTime);
   }
   
   // Helper method to get recurring pattern display info
   Map<String, dynamic> _getRecurringPatternInfo(String patternJson) {
-    try {
-      final Map<String, dynamic> result = {
-        'hasPattern': false,
-        'icon': Icons.calendar_today,
-        'label': '',
-        'color': Colors.grey,
-        'firstOccurrence': event.startTime,
-        'patternData': null,
-      };
-      
-      final patternData = json.decode(patternJson);
-      final type = patternData['type'] as String? ?? 'none';
-      
-      if (type == 'none') return result;
-      
-      result['hasPattern'] = true;
-      result['patternData'] = patternData;
-      
-      // Calculate first occurrence date for weekly patterns
-      if (type == 'weekly' && patternData['weekdays'] != null) {
-        final List<dynamic> weekdays = patternData['weekdays'];
-        if (weekdays.isNotEmpty) {
-          // Convert weekday names to day numbers (1-7 where 1 is Monday)
-          final Map<String, int> weekdayMap = {
-            'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7
-          };
-          
-          // Get day numbers from weekday strings
-          final List<int> selectedDays = weekdays
-              .map((day) => weekdayMap[day.toString()] ?? 0)
-              .where((day) => day > 0)
-              .toList();
-          
-          if (selectedDays.isNotEmpty) {
-            // Get current day of week (1-7)
-            final int startDayOfWeek = event.startTime.weekday;
-            
-            // Find the next selected day
-            int daysToAdd = 0;
-            bool foundDay = false;
-            
-            // Check if current day is selected
-            if (selectedDays.contains(startDayOfWeek)) {
-              foundDay = true;
-            } else {
-              // Find the next closest selected day
-              for (int i = 1; i <= 7; i++) {
-                final int checkDay = (startDayOfWeek + i) > 7 ? 
-                    (startDayOfWeek + i) - 7 : (startDayOfWeek + i);
-                
-                if (selectedDays.contains(checkDay)) {
-                  daysToAdd = i;
-                  foundDay = true;
-                  break;
-                }
-              }
-            }
-            
-            // Calculate first occurrence date
-            if (foundDay && daysToAdd > 0) {
-              result['firstOccurrence'] = event.startTime.add(Duration(days: daysToAdd));
-            }
-          }
-        }
-      }
-      
-      switch (type) {
-        case 'daily':
-          result['icon'] = Icons.calendar_view_day;
-          result['label'] = 'Daily';
-          result['color'] = Colors.blue;
-          break;
-        case 'weekly':
-          result['icon'] = Icons.calendar_view_week;
-          result['label'] = 'Weekly';
-          result['color'] = Colors.green;
-          break;
-        case 'monthly':
-          result['icon'] = Icons.calendar_view_month;
-          result['label'] = 'Monthly';
-          result['color'] = Colors.purple;
-          break;
-        default:
-          result['icon'] = Icons.repeat;
-          result['label'] = 'Recurring';
-          result['color'] = Colors.orange;
-      }
-      
-      return result;
-    } catch (e) {
-      return {
-        'hasPattern': false,
-        'icon': Icons.calendar_today,
-        'label': '',
-        'color': Colors.grey,
-      };
-    }
+    // Use the utility class to get comprehensive recurring event information
+    return RecurringEventUtils.getNextOccurrenceInfo(event);
   }
 
-  String _getTimeUntilEvent(DateTime eventDate) {
+  String _getTimeUntilEvent(DateTime? eventDate) {
+    // Return a default message if the event date is null
+    if (eventDate == null) {
+      return 'Date TBD';
+    }
+    // For recurring events, we need to calculate the next occurrence
+    DateTime dateToCheck = eventDate;
+    bool isCompleted = false;
+    
+    if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) {
+      // Get info about the next occurrence
+      final occurrenceInfo = RecurringEventUtils.getNextOccurrenceInfo(event);
+      dateToCheck = occurrenceInfo['nextOccurrence'];
+      isCompleted = occurrenceInfo['isCompleted'];
+      
+      // If the event series is completed, show "Event ended"
+      if (isCompleted) {
+        return 'Event ended';
+      }
+    }
+    
     final now = DateTime.now();
-    final difference = eventDate.difference(now);
+    final difference = dateToCheck.difference(now);
 
+    // For non-recurring events or if the next occurrence is in the past
+    if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty && !isCompleted && difference.isNegative) {
+      // This shouldn't happen often since we're calculating the next occurrence,
+      // but just in case, recalculate to get a fresh next occurrence
+      final freshOccurrence = RecurringEventUtils.calculateNextOccurrence(event);
+      final freshDifference = freshOccurrence.difference(now);
+      
+      if (freshDifference.isNegative) {
+        return 'Event ended';
+      } else if (freshDifference.inDays > 30) {
+        return '${(freshDifference.inDays / 30).floor()} months left';
+      } else if (freshDifference.inDays > 0) {
+        return '${freshDifference.inDays} days left';
+      } else if (freshDifference.inHours > 0) {
+        return '${freshDifference.inHours} hours left';
+      } else {
+        return '${freshDifference.inMinutes} minutes left';
+      }
+    }
+    
+    // Standard time difference calculation
     if (difference.isNegative) {
       return 'Event ended';
     } else if (difference.inDays > 30) {
@@ -141,117 +90,238 @@ class EventListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
     
-    return Card(
+    return Container(
       margin: EdgeInsets.symmetric(
         horizontal: isGridView ? 0 : 12, 
         vertical: isGridView ? 0 : 8
       ),
-      clipBehavior: Clip.antiAlias,
-      elevation: 0, // Removing elevation for a cleaner look
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16)
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: isDarkMode
+                ? Colors.black.withOpacity(0.3)
+                : Colors.black.withOpacity(0.08),
+            offset: const Offset(0, 4),
+            blurRadius: 12,
+            spreadRadius: 0,
+          )
+        ],
       ),
-      child: InkWell(
-        onTap: onTap ?? () => context.go('/events/${event.id}'),
-        borderRadius: BorderRadius.circular(16),
-        child: isGridView ? _buildGridItem(theme) : _buildListItem(theme),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap ?? () => context.go('/events/${event.id}'),
+          child: isGridView ? _buildGridItem(theme) : _buildListItem(theme),
+        ),
       ),
     );
   }
   
   Widget _buildGridItem(ThemeData theme) {
+    final isDarkMode = theme.brightness == Brightness.dark;
+    // Check if we're on a larger screen to adjust content display
+    final isLargeScreen = MediaQueryData.fromWindow(window).size.width > 600;
+
+    // Using a more responsive layout approach to fit within constraints
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min, // Only take needed space
       children: [
         // Event image with price badge
         Stack(
           children: [
+            // Image with gradient overlay
             Hero(
               tag: 'event_image_${event.id}_grid',
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                child: event.mediaUrls?.isNotEmpty ?? false
-                    ? Image.network(
-                        event.mediaUrls!.first,
-                        height: 160,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _buildGridPlaceholder(theme);
-                        },
-                      )
-                    : _buildGridPlaceholder(theme),
-              ),
-            ),
-            // Top-right badges
-            Positioned(
-              top: 12,
-              right: 12,
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(8),
+              child: Container(
+                height: isLargeScreen ? 180 : 160, // Adjust height based on screen size
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Event image
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                      child: event.mediaUrls?.isNotEmpty ?? false
+                        ? Image.network(
+                            event.mediaUrls!.first,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return _buildGridPlaceholder(theme);
+                            },
+                          )
+                        : _buildGridPlaceholder(theme),
                     ),
-                    child: Text(
-                      event.eventType == EventType.free ? 'FREE' : '₹${event.ticketPrice?.toStringAsFixed(0) ?? '0'}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
+                    // Gradient overlay
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.3),
+                            ],
+                            stops: const [0.7, 1.0],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade500,
-                      borderRadius: BorderRadius.circular(8),
+                  ],
+                ),
+              ),
+            ),
+            // Price badge (top-left)
+            Positioned(
+              top: 16,
+              left: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: event.eventType == EventType.free 
+                    ? theme.colorScheme.primary 
+                    : theme.colorScheme.secondary,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                    child: Builder(builder: (context) {
-                      // Check if we need to use a different date for recurring events
-                      DateTime dateToUse = event.startTime;
-                      
-                      // If this is a recurring event, use the calculated first occurrence date
-                      if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) {
-                        final patternInfo = _getRecurringPatternInfo(event.recurringPattern!);
-                        if (patternInfo['hasPattern'] && patternInfo.containsKey('firstOccurrence')) {
-                          dateToUse = patternInfo['firstOccurrence'];
-                        }
-                      }
-                      
-                      return Text(
+                  ],
+                ),
+                child: Text(
+                  event.eventType == EventType.free 
+                    ? 'FREE' 
+                    : '₹${event.ticketPrice?.toStringAsFixed(0) ?? '0'}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+            
+            // Time remaining badge (top-right)
+            Positioned(
+              top: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Builder(builder: (context) {
+                  // Use the correct date for recurring events
+                  DateTime? dateToUse = event.startTime;
+                  
+                  // If this is a recurring event, use the calculated first occurrence date
+                  if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) {
+                    final patternInfo = _getRecurringPatternInfo(event.recurringPattern!);
+                    if (patternInfo['hasPattern'] && patternInfo.containsKey('firstOccurrence')) {
+                      dateToUse = patternInfo['firstOccurrence'];
+                    }
+                  }
+                  
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.access_time_rounded,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
                         _getTimeUntilEvent(dateToUse),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
-                      );
-                    }),
-                  ),
-                ],
+                      ),
+                    ],
+                  );
+                }),
               ),
             ),
+            
+            // Recurring event badge (bottom-left)
+            if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty)
+              Positioned(
+                bottom: 16,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _getRecurringPatternInfo(event.recurringPattern!)['color'].withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _getRecurringPatternInfo(event.recurringPattern!)['icon'],
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _getRecurringPatternInfo(event.recurringPattern!)['label'],
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
         
-        // Content area
+        // Content area with responsive spacing
         Padding(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.symmetric(
+            horizontal: isLargeScreen ? 16 : 12, 
+            vertical: isLargeScreen ? 14 : 10
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title with maxLines for grid
+              // Title with optimized size
               Text(
                 event.title,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  height: 1.2,
+                  height: 1.1,
+                  letterSpacing: -0.3,
+                  fontSize: 16,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -259,50 +329,58 @@ class EventListItem extends StatelessWidget {
               
               const SizedBox(height: 6),
               
-              // Category chip
+              // Category with modern design
               if (event.category != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: _getCategoryColor(event.category!).withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(8),
+                    color: _getCategoryColor(event.category!).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _getCategoryColor(event.category!).withOpacity(0.3),
+                      width: 1,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         _getCategoryIcon(event.category!),
-                        size: 12,
-                        color: Colors.white,
+                        size: 14,
+                        color: _getCategoryColor(event.category!),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 6),
                       Text(
                         event.category!,
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: Colors.white,
+                          color: _getCategoryColor(event.category!),
                           fontWeight: FontWeight.w600,
-                          fontSize: 10,
+                          fontSize: 12,
                         ),
                       ),
                     ],
                   ),
                 ),
               
-              const SizedBox(height: 8),
-              
-              // Description (shorter for grid)
-              if (event.description != null)
-                Text(
-                  event.description!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
-                    height: 1.3,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              
               const SizedBox(height: 12),
+              
+              // Description - shown conditionally based on screen size
+              if (event.description != null) ...[  
+                // On larger screens show description for all events
+                // On smaller screens only show for non-recurring events to save space
+                if (isLargeScreen || (!isLargeScreen && event.recurringPattern == null))
+                  Text(
+                    event.description!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                      height: 1.3,
+                      fontSize: isLargeScreen ? 13 : 12,
+                    ),
+                    maxLines: isLargeScreen ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                const SizedBox(height: 8),
+              ],
               
               // Event details in compact format - Check for recurring pattern
               Builder(builder: (context) {
@@ -311,7 +389,7 @@ class EventListItem extends StatelessWidget {
                   final patternInfo = _getRecurringPatternInfo(event.recurringPattern!);
                   if (patternInfo['hasPattern']) {
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                       decoration: BoxDecoration(
                         color: patternInfo['color'].withOpacity(0.15),
                         borderRadius: BorderRadius.circular(4),
@@ -339,9 +417,11 @@ class EventListItem extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'from ${DateFormat('E, MMM d').format(patternInfo['firstOccurrence'])}',
+                            patternInfo['firstOccurrence'] != null 
+                              ? 'from ${DateFormat('E, MMM d').format(patternInfo['firstOccurrence'] as DateTime)}' 
+                              : 'Date TBD',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              fontSize: 9,
+                              fontSize: 10,
                               color: theme.colorScheme.onSurface.withOpacity(0.6),
                             ),
                           ),
@@ -360,9 +440,9 @@ class EventListItem extends StatelessWidget {
                       color: theme.colorScheme.primary,
                     ),
                     const SizedBox(width: 4),
-                    Expanded(
+                    Flexible(
                       child: Text(
-                        _formatDateTime(event.startTime),
+                        event.startTime != null ? _formatDateTime(event.startTime) : 'Date TBD',
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w500,
                           fontSize: 10,
@@ -375,29 +455,35 @@ class EventListItem extends StatelessWidget {
                 );
               }),
               
+              // Location display - conditional based on screen size
               if (event.location != null) ...[                        
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 12,
-                      color: theme.colorScheme.secondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        event.location!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 10,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                // On larger screens show location for all events
+                // On smaller screens only show for non-recurring events to save space
+                if (isLargeScreen || (!isLargeScreen && event.recurringPattern == null)) ...[  
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        size: isLargeScreen ? 14 : 12,
+                        color: theme.colorScheme.secondary,
                       ),
-                    ),
-                  ],
-                ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          event.location!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            fontSize: isLargeScreen ? 12 : 10,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ],
           ),
@@ -407,329 +493,485 @@ class EventListItem extends StatelessWidget {
   }
   
   Widget _buildListItem(ThemeData theme) {
+    final isDarkMode = theme.brightness == Brightness.dark;
+  
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Stack(
           children: [
-            Hero(
-              tag: 'event_image_${event.id}',
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                child: event.mediaUrls?.isNotEmpty ?? false
-                    ? Image.network(
-                        event.mediaUrls!.first,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _buildPlaceholder(theme);
-                        },
-                      )
-                    : _buildPlaceholder(theme),
-              ),
-            ),
-            Positioned(
-              top: 12,
-              right: 12,
-              child: Row(
+            // Enhanced image container with gradient overlay
+          SizedBox(
+            height: 240, // Increased height for better viewing
+            width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      event.eventType == EventType.free ? 'FREE' : '₹${event.ticketPrice?.toStringAsFixed(2) ?? '0.00'}',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  // Main event image
+                  Hero(
+                    tag: 'event_image_${event.id}',
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                      child: event.mediaUrls?.isNotEmpty ?? false
+                        ? Image.network(
+                            event.mediaUrls!.first,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return _buildPlaceholder(theme);
+                            },
+                          )
+                        : _buildPlaceholder(theme),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      // Use the appropriate date for status color calculations
-                      color: _getStatusPillColor(
-                        event.recurringPattern != null && event.recurringPattern!.isNotEmpty
-                            ? _getRecurringPatternInfo(event.recurringPattern!)['firstOccurrence']
-                            : event.startTime,
-                        event.status
-                      ).withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                  // Gradient overlay for improved text readability
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.5),
+                          ],
+                          stops: const [0.6, 1.0],
                         ),
-                      ],
-                    ),
-                    child: Text(
-                      // Use the first occurrence date for time remaining calculation
-                      _getTimeUntilEvent(
-                        event.recurringPattern != null && event.recurringPattern!.isNotEmpty
-                            ? _getRecurringPatternInfo(event.recurringPattern!)['firstOccurrence']
-                            : event.startTime
-                      ),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
+            // Price badge (top-left)
+            Positioned(
+              top: 16,
+              left: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: event.eventType == EventType.free 
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.secondary,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  event.eventType == EventType.free 
+                    ? 'FREE' 
+                    : '₹${event.ticketPrice?.toStringAsFixed(0) ?? '0'}',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
+            
+            // Time remaining badge (top-right)
+            Positioned(
+              top: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.access_time_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      // Use the first occurrence date for time remaining calculation with fallback
+                      () {
+                        if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) {
+                          final patternInfo = _getRecurringPatternInfo(event.recurringPattern!);
+                          // Calculate next occurrence directly if firstOccurrence isn't available
+                          final occurrenceDate = patternInfo.containsKey('firstOccurrence') && patternInfo['firstOccurrence'] != null
+                              ? patternInfo['firstOccurrence'] as DateTime
+                              : RecurringEventUtils.calculateNextOccurrence(event);
+                          return _getTimeUntilEvent(occurrenceDate);
+                        } else {
+                          return _getTimeUntilEvent(event.startTime);
+                        }
+                      }(),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Recurring event badge (if applicable)
+            if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty)
+              Positioned(
+                bottom: 16,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _getRecurringPatternInfo(event.recurringPattern!)['color'].withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _getRecurringPatternInfo(event.recurringPattern!)['icon'],
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _getRecurringPatternInfo(event.recurringPattern!)['label'],
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          event.title,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+              // Event title with enhanced typography
+              Text(
+                event.title,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  height: 1.2,
+                  letterSpacing: -0.3,
+                  fontSize: 22,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              
+              // Category with modern styling
+              if (event.category != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _getCategoryColor(event.category!).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _getCategoryColor(event.category!).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _getCategoryIcon(event.category!),
+                        size: 16,
+                        color: _getCategoryColor(event.category!),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        event.category!,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: _getCategoryColor(event.category!),
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.3,
                         ),
-                        if (event.category != null) ...[
-                          const SizedBox(height: 4),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              
+              // Description with improved styling
+              if (event.description != null) ...[
+                const SizedBox(height: 14),
+                Text(
+                  event.description!,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    height: 1.5,
+                    fontSize: 14,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              
+              const SizedBox(height: 20),
+              // Event details section with modern design
+              Container(
+                margin: const EdgeInsets.only(top: 5), // Add margin for spacing
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withOpacity(0.1),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.shadowColor.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    // Date & Time row with enhanced recurring event display
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          // Calendar icon with pattern-specific styling
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: _getCategoryColor(event.category!),
+                              color: event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                ? _getRecurringPatternInfo(event.recurringPattern!)['color'].withOpacity(0.15)
+                                : theme.colorScheme.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                ? _getRecurringPatternInfo(event.recurringPattern!)['icon']
+                                : Icons.calendar_today_rounded,
+                              size: 20,
+                              color: event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                ? _getRecurringPatternInfo(event.recurringPattern!)['color']
+                                : theme.colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Enhanced header for recurring events
+                                Text(
+                                  event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                    ? 'Recurring Event'
+                                    : 'Date & Time',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                      ? _getRecurringPatternInfo(event.recurringPattern!)['color']
+                                      : theme.colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                
+                                // Recurring pattern display with modern badge
+                                if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) ...[                                
+                                  Row(
+                                    children: [
+                                      // Pattern type badge (Daily, Weekly, Monthly)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        margin: const EdgeInsets.only(right: 8),
+                                        decoration: BoxDecoration(
+                                          color: _getRecurringPatternInfo(event.recurringPattern!)['color'].withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: _getRecurringPatternInfo(event.recurringPattern!)['color'].withOpacity(0.3),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          _getRecurringPatternInfo(event.recurringPattern!)['label'],
+                                          style: theme.textTheme.labelSmall?.copyWith(
+                                            color: _getRecurringPatternInfo(event.recurringPattern!)['color'],
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                      // First occurrence with countdown
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              _getRecurringPatternInfo(event.recurringPattern!).containsKey('firstOccurrence')
+                                                ? DateFormat('E, MMM d • ').format(_getRecurringPatternInfo(event.recurringPattern!)['firstOccurrence'] as DateTime) +
+                                                  _getTimeUntilEvent(_getRecurringPatternInfo(event.recurringPattern!)['firstOccurrence'] as DateTime?)
+                                                : 'Date TBD',
+                                              style: theme.textTheme.bodyMedium?.copyWith(
+                                                fontWeight: FontWeight.w500,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ] else ...[                              
+                                  Text(
+                                  event.startTime != null ? _formatDateTime(event.startTime) : 'Date TBD',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Divider
+                    if (event.location != null)
+                      Divider(height: 1, thickness: 1, color: theme.colorScheme.outline.withOpacity(0.1)),
+                    // Location display with modern design
+                    if (event.location != null)
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.secondary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.place_rounded,
+                                size: 20,
+                                color: theme.colorScheme.secondary,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Location',
+                                    style: theme.textTheme.labelMedium?.copyWith(
+                                      color: theme.colorScheme.secondary,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    event.location!,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // Enhanced tags section
+              if (event.tags.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
+                      child: Text(
+                        'Tags',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: event.tags.map((tag) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceVariant.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: _getCategoryColor(event.category!).withOpacity(0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
+                                  color: theme.shadowColor.withOpacity(0.05),
+                                  blurRadius: 3,
+                                  offset: const Offset(0, 1),
                                 ),
                               ],
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  _getCategoryIcon(event.category!),
-                                  size: 14,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 6),
                                 Text(
-                                  event.category!,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.5,
+                                  '#',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: theme.colorScheme.primary.withOpacity(0.7),
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              if (event.description != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  event.description!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
-                    height: 1.5,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: theme.colorScheme.outline.withOpacity(0.2),
-                    ),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        // Use appropriate icon for calendar based on whether event is recurring
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            event.recurringPattern != null && event.recurringPattern!.isNotEmpty
-                              ? _getRecurringPatternInfo(event.recurringPattern!)['icon']
-                              : Icons.calendar_today,
-                            size: 16,
-                            color: event.recurringPattern != null && event.recurringPattern!.isNotEmpty
-                              ? _getRecurringPatternInfo(event.recurringPattern!)['color']
-                              : theme.colorScheme.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Show 'Recurring Event' or 'Date & Time' based on pattern
-                              Text(
-                                event.recurringPattern != null && event.recurringPattern!.isNotEmpty
-                                  ? 'Recurring Event'
-                                  : 'Date & Time',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: event.recurringPattern != null && event.recurringPattern!.isNotEmpty
-                                    ? _getRecurringPatternInfo(event.recurringPattern!)['color']
-                                    : theme.colorScheme.primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              // Show pattern label + date or just the formatted date
-                              if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) ...[                                
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      margin: const EdgeInsets.only(right: 6),
-                                      decoration: BoxDecoration(
-                                        color: _getRecurringPatternInfo(event.recurringPattern!)['color'].withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        _getRecurringPatternInfo(event.recurringPattern!)['label'],
-                                        style: theme.textTheme.labelSmall?.copyWith(
-                                          color: _getRecurringPatternInfo(event.recurringPattern!)['color'],
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        _formatDateTime(_getRecurringPatternInfo(event.recurringPattern!)['firstOccurrence']),
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ] else ...[                              
                                 Text(
-                                  _formatDateTime(event.startTime),
-                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                  tag,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (event.location != null) ...[
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.secondary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.location_on,
-                              size: 16,
-                              color: theme.colorScheme.secondary,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Location',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.secondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  event.location!,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        )).toList(),
                       ),
-                    ],
+                    ),
                   ],
                 ),
-              ),
-              if (event.tags.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: event.tags.map((tag) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceVariant,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: theme.colorScheme.outline.withOpacity(0.2),
-                          ),
-                        ),
-                        child: Text(
-                          '#$tag',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    )).toList(),
-                  ),
-                ),
+                const SizedBox(height: 6),
               ],
             ],
           ),
@@ -787,11 +1029,31 @@ class EventListItem extends StatelessWidget {
     }
   }
 
-  Color _getStatusPillColor(DateTime eventDate, EventStatus status) {
-    // Check if event has ended first, regardless of status
-    final now = DateTime.now();
-    if (eventDate.isBefore(now)) {
-      return Colors.red; // Show red for any ended event
+  Color _getStatusPillColor(DateTime? eventDate, EventStatus status) {
+    // For recurring events, we need different logic
+    if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) {
+      final occurrenceInfo = RecurringEventUtils.getNextOccurrenceInfo(event);
+      final isCompleted = occurrenceInfo['isCompleted'];
+      
+      if (isCompleted) {
+        return Colors.red; // Show red for completed recurring events
+      }
+      
+      // Use the next occurrence date for color determination
+      final nextDate = occurrenceInfo['nextOccurrence'];
+      if (nextDate != null) {
+        final now = DateTime.now();
+        
+        if (nextDate.isBefore(now)) {
+          return Colors.red; // Show red if next occurrence is in the past
+        }
+      }
+    } else if (eventDate != null) {
+      // Standard logic for non-recurring events
+      final now = DateTime.now();
+      if (eventDate.isBefore(now)) {
+        return Colors.red; // Show red for any ended event
+      }
     }
     
     // Otherwise, use the regular status color

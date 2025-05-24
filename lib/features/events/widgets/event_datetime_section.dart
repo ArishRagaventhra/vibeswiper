@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:scompass_07/core/utils/responsive_layout.dart';
 import 'dart:convert';
+import '../utils/recurring_event_utils.dart';
+import '../models/event_model.dart';
 
 class EventDateTimeSection extends StatelessWidget {
   final DateTime startTime;
@@ -188,212 +190,277 @@ class EventDateTimeSection extends StatelessWidget {
   
   // Helper method to calculate the first occurrence date for recurring patterns
   Future<DateTime> _calculateFirstOccurrence(String patternType) async {
-    try {
-      if (recurringPattern == null || recurringPattern!.isEmpty) {
-        return startTime;
-      }
-      
-      final patternData = json.decode(recurringPattern!);
-      final type = patternData['type'] as String? ?? 'none';
-      
-      if (type == 'none') {
-        return startTime;
-      }
-      
-      // Special handling for weekly patterns
-      if (type == 'weekly' && patternData['weekdays'] != null) {
-        final List<dynamic> weekdays = patternData['weekdays'];
-        if (weekdays.isNotEmpty) {
-          // Convert weekday names to day numbers (1-7 where 1 is Monday)
-          final Map<String, int> weekdayMap = {
-            'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7
-          };
-          
-          // Get day numbers from weekday strings
-          final List<int> selectedDays = weekdays
-              .map((day) => weekdayMap[day.toString()] ?? 0)
-              .where((day) => day > 0)
-              .toList();
-          
-          if (selectedDays.isNotEmpty) {
-            // Get current day of week (1-7)
-            final int startDayOfWeek = startTime.weekday;
-            
-            // Find the next selected day
-            int daysToAdd = 0;
-            bool foundDay = false;
-            
-            // Check if current day is selected
-            if (selectedDays.contains(startDayOfWeek)) {
-              foundDay = true;
-            } else {
-              // Find the next closest selected day
-              for (int i = 1; i <= 7; i++) {
-                final int checkDay = (startDayOfWeek + i) > 7 ? 
-                    (startDayOfWeek + i) - 7 : (startDayOfWeek + i);
-                
-                if (selectedDays.contains(checkDay)) {
-                  daysToAdd = i;
-                  foundDay = true;
-                  break;
-                }
-              }
-            }
-            
-            // Calculate first occurrence date
-            if (foundDay && daysToAdd > 0) {
-              return startTime.add(Duration(days: daysToAdd));
-            }
-          }
-        }
-      }
-      
-      // For all other pattern types, use the start time
-      return startTime;
-    } catch (e) {
-      debugPrint('Error calculating first occurrence: $e');
-      return startTime;
-    }
+    // Create a temporary Event object to use with RecurringEventUtils
+    final tempEvent = Event(
+      id: 'temp',
+      creatorId: 'temp',
+      title: 'temp',
+      startTime: startTime,
+      endTime: endTime,
+      eventType: EventType.free,
+      visibility: EventVisibility.public,
+      tags: [],
+      status: EventStatus.upcoming,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      recurringPattern: recurringPattern,
+    );
+    
+    // Use the utility class to calculate the next occurrence
+    final nextOccurrence = RecurringEventUtils.calculateNextOccurrence(tempEvent);
+    return nextOccurrence;
   }
   
   // Helper method to display recurring pattern information
   Widget _buildRecurringPatternInfo(BuildContext context, ThemeData theme) {
     try {
-      if (recurringPattern == null || recurringPattern!.isEmpty) {
+      // Create a temporary Event object to use with RecurringEventUtils
+      final tempEvent = Event(
+        id: 'temp',
+        creatorId: 'temp',
+        title: 'temp',
+        startTime: startTime,
+        endTime: endTime,
+        eventType: EventType.free,
+        visibility: EventVisibility.public,
+        tags: [],
+        status: EventStatus.upcoming,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        recurringPattern: recurringPattern,
+      );
+      
+      // Get comprehensive recurring pattern info
+      final patternInfo = RecurringEventUtils.getNextOccurrenceInfo(tempEvent);
+      final bool hasPattern = patternInfo['hasPattern'] as bool? ?? false;
+      
+      if (!hasPattern) {
         return const SizedBox.shrink();
       }
       
-      // Parse the recurring pattern JSON
       final patternData = json.decode(recurringPattern!);
       final type = patternData['type'] as String? ?? 'none';
+      final untilDate = patternData['until'] != null ? DateTime.parse(patternData['until']) : null;
+      final occurrenceCount = patternData['count'] as int?;
       
-      if (type == 'none') {
-        return const SizedBox.shrink();
-      }
+      // Extract information from pattern info
+      final bool isCompleted = patternInfo['isCompleted'] as bool? ?? false;
+      final DateTime nextOccurrence = patternInfo['nextOccurrence'] as DateTime? ?? startTime;
+      final DateTime nextEndTime = patternInfo['nextEndTime'] as DateTime? ?? endTime;
+      final IconData patternIcon = patternInfo['icon'] as IconData? ?? Icons.repeat;
+      final String patternBadge = patternInfo['label'] as String? ?? 'Recurring';
+      final Color patternColor = patternInfo['color'] as Color? ?? Colors.orange;
       
-      // Build pattern description based on type
-      String patternDescription = '';
-      String patternShortLabel = ''; // For badges/chips
-      IconData patternIcon;
-      Color patternColor = theme.colorScheme.primary;
+      // Format dates for display
+      final nextOccurrenceDate = DateFormat('EEE, MMM d, y').format(nextOccurrence);
+      final nextOccurrenceTime = DateFormat('h:mm a').format(nextOccurrence);
+      final endTimeStr = DateFormat('h:mm a').format(nextEndTime);
       
-      // Define color and content based on pattern type
+      // Create pattern description
+      String patternDescription = 'This event repeats ';
+      String endInfo = '';
+      
+      // Determine pattern-specific information
       switch (type) {
         case 'daily':
-          patternDescription = 'Repeats daily';
-          patternShortLabel = 'Daily';
-          patternIcon = Icons.calendar_view_day;
-          patternColor = Colors.blue;
+          patternDescription += 'daily';
           break;
         case 'weekly':
-          final weekdays = patternData['weekdays'] as List?;
-          if (weekdays != null && weekdays.isNotEmpty) {
-            patternDescription = 'Repeats weekly on ${weekdays.join(', ')}';
-            if (weekdays.length <= 2) {
-              patternShortLabel = weekdays.join(', ');
+          // Format weekday information if available
+          if (patternData['weekdays'] != null) {
+            final List<dynamic> weekdays = patternData['weekdays'];
+            if (weekdays.isNotEmpty) {
+              patternDescription += 'weekly on ';
+              
+              // Handle different weekday formats
+              final List<String> formattedWeekdays = [];
+              for (var day in weekdays) {
+                switch (day.toString()) {
+                  case 'Mon':
+                    formattedWeekdays.add('Monday');
+                    break;
+                  case 'Tue':
+                    formattedWeekdays.add('Tuesday');
+                    break;
+                  case 'Wed':
+                    formattedWeekdays.add('Wednesday');
+                    break;
+                  case 'Thu':
+                    formattedWeekdays.add('Thursday');
+                    break;
+                  case 'Fri':
+                    formattedWeekdays.add('Friday');
+                    break;
+                  case 'Sat':
+                    formattedWeekdays.add('Saturday');
+                    break;
+                  case 'Sun':
+                    formattedWeekdays.add('Sunday');
+                    break;
+                  default:
+                    formattedWeekdays.add(day.toString());
+                }
+              }
+              
+              if (formattedWeekdays.length == 1) {
+                patternDescription += formattedWeekdays[0];
+              } else if (formattedWeekdays.length == 2) {
+                patternDescription += '${formattedWeekdays[0]} and ${formattedWeekdays[1]}';
+              } else {
+                final lastDay = formattedWeekdays.removeLast();
+                patternDescription += '${formattedWeekdays.join(', ')}, and $lastDay';
+              }
             } else {
-              patternShortLabel = 'Weekly';
+              patternDescription += 'weekly';
             }
           } else {
-            patternDescription = 'Repeats weekly';
-            patternShortLabel = 'Weekly';
+            patternDescription += 'weekly';
           }
-          patternIcon = Icons.calendar_view_week;
-          patternColor = Colors.green;
           break;
         case 'monthly':
-          final dayOfMonth = patternData['dayOfMonth'] as int? ?? startTime.day;
-          patternDescription = 'Repeats monthly on day $dayOfMonth';
-          patternShortLabel = 'Monthly';
-          patternIcon = Icons.calendar_view_month;
-          patternColor = Colors.purple;
-          break;
-        case 'custom':
-          patternDescription = 'Custom recurring pattern';
-          patternShortLabel = 'Custom';
-          patternIcon = Icons.calendar_today;
-          patternColor = Colors.orange;
+          patternDescription += 'monthly on day ${startTime.day}';
           break;
         default:
-          patternDescription = 'Recurring event';
-          patternShortLabel = 'Recurring';
-          patternIcon = Icons.repeat;
-          patternColor = theme.colorScheme.primary;
+          patternDescription += 'regularly';
       }
       
-      // Add end condition info
-      String endInfo = '';
-      if (patternData.containsKey('endDate')) {
-        final endDate = DateTime.parse(patternData['endDate']);
-        endInfo = 'until ${DateFormat('MMM d, y').format(endDate)}';
-      } else if (patternData.containsKey('occurrences')) {
-        final occurrences = patternData['occurrences'];
-        endInfo = '$occurrences occurrences';
+      // Add end condition information
+      if (untilDate != null) {
+        final formattedUntil = DateFormat('MMM d, y').format(untilDate);
+        patternDescription += ' until $formattedUntil';
+        endInfo = 'Until $formattedUntil';
+      } else if (occurrenceCount != null) {
+        patternDescription += ' for $occurrenceCount occurrences';
+        endInfo = '$occurrenceCount occurrences';
+      } else {
+        patternDescription += ' indefinitely';
+        endInfo = 'No end date';
       }
       
-      // Return a more visually striking widget
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Pattern type chip/badge
-          Row(
+      // If the series is completed, show a different message
+      if (isCompleted) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.red.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: patternColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: patternColor.withOpacity(0.5), width: 1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      patternIcon,
-                      size: 16,
-                      color: patternColor,
+              Row(
+                children: [
+                  // Pattern badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      patternShortLabel,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: patternColor,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.event_busy,
+                          size: 16,
+                          color: Colors.red,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Series Ended',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 12),
+              
+              Text(
+                'This recurring event series has ended.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
-              if (endInfo.isNotEmpty) ...[  
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    endInfo,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+              
+              const SizedBox(height: 8),
+              
+              Text(
+                'Original schedule: $patternDescription',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  fontStyle: FontStyle.italic,
                 ),
-              ],
+              ),
             ],
           ),
-          
-          const SizedBox(height: 12),
-          
-          // Full pattern description
-          Text(
-            patternDescription,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface,
-              height: 1.3,
+        );
+      }
+      
+      // Normal display for active recurring events
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: theme.brightness == Brightness.light 
+              ? Colors.white 
+              : theme.colorScheme.primaryContainer.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: theme.brightness == Brightness.light 
+              ? Border.all(color: theme.colorScheme.outline.withOpacity(0.2)) 
+              : null,
+        ),
+        child: Row(
+          children: [
+            // Pattern type chip/badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: patternColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: patternColor.withOpacity(0.5), width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    patternIcon,
+                    size: 16,
+                    color: patternColor,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    patternBadge,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: patternColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            if (endInfo.isNotEmpty) ...[  
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  endInfo,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       );
     } catch (e) {
       // In case of any error parsing the pattern, show a simple fallback

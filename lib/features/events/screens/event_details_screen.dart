@@ -44,6 +44,7 @@ import '../widgets/event_datetime_section.dart';
 import '../widgets/event_participants_section.dart';
 import '../widgets/event_policy_section.dart';
 import '../../../config/routes.dart';
+import '../utils/recurring_event_utils.dart';
 
 class EventDetailsScreen extends ConsumerStatefulWidget {
   final String eventId;
@@ -712,7 +713,12 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                           }
                                         } else {
                                           // Check if event is completed before allowing join
-                                          if (DateTime.now().isAfter(event.endTime)) {
+                                          final bool isRecurringEvent = event.recurringPattern != null && event.recurringPattern!.isNotEmpty;
+                                          final bool eventCompleted = isRecurringEvent
+                                              ? RecurringEventUtils.isEventSeriesCompleted(event)
+                                              : DateTime.now().isAfter(event.endTime);
+                                              
+                                          if (eventCompleted) {
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               const SnackBar(
                                                 content: Text('This event has already ended and cannot be joined.'),
@@ -733,7 +739,11 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                       style: ElevatedButton.styleFrom(
                                         // Use the primary gradient for paid events that are not completed,
                                         // and when the user is not already a participant
-                                        backgroundColor: (!isParticipant && !isCreator && !DateTime.now().isAfter(event.endTime) && 
+                                        backgroundColor: (!isParticipant && !isCreator && 
+                                            // Check if event is still active using proper recurring pattern logic
+                                            !(event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                                ? RecurringEventUtils.isEventSeriesCompleted(event)
+                                                : DateTime.now().isAfter(event.endTime)) && 
                                             (event.ticketPrice != null && event.ticketPrice! > 0)) 
                                             ? Colors.transparent
                                             : _getButtonColor(event, isParticipant, isCreator, theme),
@@ -745,7 +755,11 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                         ),
                                       ),
                                       child: Ink(
-                                        decoration: (!isParticipant && !isCreator && !DateTime.now().isAfter(event.endTime) && 
+                                        decoration: (!isParticipant && !isCreator && 
+                                            // Check if event is still active using proper recurring pattern logic
+                                            !(event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                                ? RecurringEventUtils.isEventSeriesCompleted(event)
+                                                : DateTime.now().isAfter(event.endTime)) && 
                                             (event.ticketPrice != null && event.ticketPrice! > 0))
                                             ? BoxDecoration(
                                                 gradient: AppTheme.primaryGradient,
@@ -760,7 +774,11 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
                                               // If it's a paid event and user hasn't joined yet and event hasn't ended
-                                              if (!isParticipant && !isCreator && !DateTime.now().isAfter(event.endTime) && 
+                                              if (!isParticipant && !isCreator && 
+                                                  // Check if event is still active using proper recurring pattern logic
+                                                  !(event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                                      ? RecurringEventUtils.isEventSeriesCompleted(event)
+                                                      : DateTime.now().isAfter(event.endTime)) && 
                                                   (event.ticketPrice != null && event.ticketPrice! > 0)) ...[                                             
                                                 // Show booking ticket info with price - using a flat layout instead of nested columns
                                                 Expanded(
@@ -1898,7 +1916,13 @@ ${event.description ?? ''}
   }
 
   Color _getButtonBoxShadowColor(Event event, bool isParticipant, bool isCreator, ThemeData theme) {
-    if (DateTime.now().isAfter(event.endTime)) {
+    // Check if this is a recurring event and if it has future occurrences
+    final bool isRecurringEvent = event.recurringPattern != null && event.recurringPattern!.isNotEmpty;
+    final bool eventCompleted = isRecurringEvent
+        ? RecurringEventUtils.isEventSeriesCompleted(event)
+        : DateTime.now().isAfter(event.endTime);
+    
+    if (eventCompleted) {
       return Colors.grey.withOpacity(0.3);
     } else if (isParticipant && !isCreator && (event.ticketPrice == null || event.ticketPrice == 0)) {
       // Only show red for free events where regular participant wants to leave
@@ -1912,7 +1936,13 @@ ${event.description ?? ''}
   }
 
   Color _getButtonColor(Event event, bool isParticipant, bool isCreator, ThemeData theme) {
-    if (DateTime.now().isAfter(event.endTime)) {
+    // Check if this is a recurring event and if it has future occurrences
+    final bool isRecurringEvent = event.recurringPattern != null && event.recurringPattern!.isNotEmpty;
+    final bool eventCompleted = isRecurringEvent
+        ? RecurringEventUtils.isEventSeriesCompleted(event)
+        : DateTime.now().isAfter(event.endTime);
+    
+    if (eventCompleted) {
       return Colors.grey;
     } else if (isParticipant && !isCreator && (event.ticketPrice == null || event.ticketPrice == 0)) {
       // Only show red for free events where regular participant wants to leave
@@ -1926,7 +1956,13 @@ ${event.description ?? ''}
   }
 
   IconData _getButtonIcon(Event event, bool isParticipant, bool isCreator) {
-    if (DateTime.now().isAfter(event.endTime)) {
+    // Check if this is a recurring event and if it has future occurrences
+    final bool isRecurringEvent = event.recurringPattern != null && event.recurringPattern!.isNotEmpty;
+    final bool eventCompleted = isRecurringEvent
+        ? RecurringEventUtils.isEventSeriesCompleted(event)
+        : DateTime.now().isAfter(event.endTime);
+    
+    if (eventCompleted) {
       return Icons.event_busy;
     } else if (isCreator) {
       // For event creators
@@ -1944,7 +1980,13 @@ ${event.description ?? ''}
   }
 
   String _getButtonText(Event event, bool isParticipant, bool isCreator) {
-    if (DateTime.now().isAfter(event.endTime)) {
+    // Check if this is a recurring event and if it has future occurrences
+    final bool isRecurringEvent = event.recurringPattern != null && event.recurringPattern!.isNotEmpty;
+    final bool eventCompleted = isRecurringEvent
+        ? RecurringEventUtils.isEventSeriesCompleted(event)
+        : DateTime.now().isAfter(event.endTime);
+    
+    if (eventCompleted) {
       return 'Event Completed';
     } else if (isCreator) {
       // For event creators
