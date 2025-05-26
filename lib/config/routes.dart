@@ -455,8 +455,12 @@ class AppRoutes {
         final isAuthRoute = state.matchedLocation == login || 
                            state.matchedLocation == register ||
                            state.matchedLocation == forgotPassword;
+                           
+        // Allow access to legal documents without authentication
+        final isLegalDocRoute = state.matchedLocation == privacyPolicy ||
+                               state.matchedLocation == termsConditions;
 
-        if (!isAuth && !isAuthRoute) {
+        if (!isAuth && !isAuthRoute && !isLegalDocRoute) {
           return login;
         } else if (isAuth && isAuthRoute) {
           return eventsList;

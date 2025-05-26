@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/ticket_booking_model.dart';
+import '../providers/event_providers.dart';
 import '../repositories/ticket_booking_repository.dart';
+import '../../auth/providers/auth_provider.dart';
 import 'dart:convert';
 
 // State for ticket verification
@@ -40,14 +42,16 @@ class TicketVerificationState {
 final ticketVerificationControllerProvider = StateNotifierProvider.autoDispose<TicketVerificationController, TicketVerificationState>((ref) {
   return TicketVerificationController(
     ref.watch(ticketBookingRepositoryProvider),
+    ref,
   );
 });
 
 // Controller for ticket verification
 class TicketVerificationController extends StateNotifier<TicketVerificationState> {
   final TicketBookingRepository _repository;
+  final Ref _ref;
 
-  TicketVerificationController(this._repository) : super(TicketVerificationState());
+  TicketVerificationController(this._repository, this._ref) : super(TicketVerificationState());
 
   // Verify a ticket by scanning QR code
   Future<void> verifyTicket(String scanData) async {
@@ -80,8 +84,22 @@ class TicketVerificationController extends StateNotifier<TicketVerificationState
         return;
       }
       
-      // 3. Create check-in record
-      final checkInSuccess = await _repository.recordCheckIn(booking.id, booking.eventId);
+      // Get current user for RLS policy compliance
+      final currentUser = _ref.read(currentUserProvider);
+      if (currentUser == null) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'You must be logged in to verify tickets.',
+        );
+        return;
+      }
+      
+      // 3. Create check-in record with proper user ID for RLS policy
+      final checkInSuccess = await _repository.recordCheckIn(
+        booking.id, 
+        booking.eventId,
+        checkedInBy: currentUser.id, // Pass user ID for RLS policy
+      );
       
       if (checkInSuccess) {
         // Successfully checked in
@@ -91,10 +109,10 @@ class TicketVerificationController extends StateNotifier<TicketVerificationState
           isVerified: true,
         );
       } else {
-        // Failed to check in
+        // Failed to check in - could be RLS authorization failure
         state = state.copyWith(
           isLoading: false,
-          error: 'Could not check in. Please try again.',
+          error: 'Not authorized to check in this ticket. Only event organizers can perform check-ins.',
         );
       }
     } catch (e) {

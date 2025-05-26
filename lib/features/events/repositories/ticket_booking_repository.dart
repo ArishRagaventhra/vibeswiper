@@ -97,7 +97,7 @@ class TicketBookingRepository {
     Map<String, dynamic>? deviceInfo,
   }) async {
     await _supabase.from('payment_interaction_metrics').insert({
-      'user_id': userId,
+      'user_id': userId, // User ID is required for RLS policy
       'event_id': eventId,
       'booking_id': bookingId,
       'interaction_type': interactionType,
@@ -245,7 +245,7 @@ class TicketBookingRepository {
   }
   
   // Record check-in for a booking
-  Future<bool> recordCheckIn(String bookingId, String eventId) async {
+  Future<bool> recordCheckIn(String bookingId, String eventId, {required String checkedInBy}) async {
     try {
       // Check if already checked in
       final isAlreadyCheckedIn = await isBookingCheckedIn(bookingId);
@@ -253,17 +253,42 @@ class TicketBookingRepository {
         return false; // Already checked in
       }
       
+      // Check if user is an organizer of this event (for RLS policy)
+      final canCheckIn = await _canUserCheckInForEvent(checkedInBy, eventId);
+      if (!canCheckIn) {
+        print('User is not authorized to check in attendees for this event');
+        return false;
+      }
+      
       // Create check-in record
       await _supabase.from('ticket_check_ins').insert({
         'booking_id': bookingId,
         'event_id': eventId,
         'checked_in_at': DateTime.now().toIso8601String(),
+        'checked_in_by': checkedInBy, // Required for RLS policy
         'check_in_method': 'qr_scan',
       });
       
       return true; // Successfully checked in
     } catch (e) {
       print('Error recording check-in: $e');
+      return false;
+    }
+  }
+  
+  // Helper method to check if user is authorized to check in attendees
+  Future<bool> _canUserCheckInForEvent(String userId, String eventId) async {
+    try {
+      final event = await _supabase
+          .from('events')
+          .select('creator_id')
+          .eq('id', eventId)
+          .maybeSingle();
+          
+      // User is authorized if they are the event creator
+      return event != null && event['creator_id'] == userId;
+    } catch (e) {
+      print('Error checking user authorization: $e');
       return false;
     }
   }

@@ -170,26 +170,34 @@ class TicketBookingController extends StateNotifier<BookingState> {
     }
   }
 
-  // Record payment interaction (QR scan, link touch, etc.)
+  // Record user interaction with payment methods
   Future<void> recordInteraction(
     String interactionType, 
     {String? paymentMethod, bool? succeeded}
   ) async {
     try {
       final currentUser = _ref.read(currentUserProvider);
-      if (currentUser == null || state.event == null) return;
-
+      if (currentUser == null || state.event == null) {
+        debugPrint('Cannot record interaction: User or event is null');
+        return;
+      }
+      
+      // Make sure user ID is always passed for RLS policy compliance
       await _repository.recordPaymentInteraction(
-        userId: currentUser.id,
+        userId: currentUser.id,  // Current user ID is required for RLS
         eventId: state.event!.id,
         interactionType: interactionType,
         bookingId: state.confirmedBooking?.id,
         paymentMethod: paymentMethod,
         succeeded: succeeded,
+        deviceInfo: {
+          'platform': defaultTargetPlatform.toString(),
+          'timestamp': DateTime.now().toIso8601String(),
+        },
       );
+      debugPrint('Payment interaction recorded: $interactionType');
     } catch (e) {
-      // Log error but don't update state since this is a background operation
-      print('Failed to record interaction: $e');
+      debugPrint('Error recording interaction: $e');
     }
   }
 

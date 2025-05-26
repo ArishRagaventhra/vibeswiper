@@ -15,6 +15,8 @@ import 'dart:convert';
 import '../controllers/booking_history_controller.dart';
 import '../../../config/theme.dart';
 import '../../../config/routes.dart';
+import '../utils/recurring_event_utils.dart';
+import '../models/event_model.dart';
 
 class BookingDetailsScreen extends ConsumerStatefulWidget {
   final String bookingId;
@@ -946,54 +948,100 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         IconData? icon,
         bool isRecurring = false,
       }) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Icon
           if (icon != null) ...[  
             Icon(
               icon,
-              size: 18,
-              color: isRecurring
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).primaryColor.withOpacity(0.7),
+              size: 20,
+              color: isRecurring 
+                ? (valueColor ?? Colors.amber)  // Use provided color or default amber for recurring events
+                : (isDarkMode ? Colors.white70 : Colors.black54),
             ),
             const SizedBox(width: 8),
           ],
+          
+          // Label and Value
           Expanded(
-            child: Text(
-              label,
-              style: Theme
-                  .of(context)
-                  .textTheme
-                  .bodyMedium!
-                  .copyWith(
-                color: isRecurring
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8),
-                fontWeight: isRecurring ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Flexible(
-            child: Text(
-              value,
-              style: Theme
-                  .of(context)
-                  .textTheme
-                  .bodyMedium!
-                  .copyWith(
-                fontWeight: isHighlighted || isRecurring ? FontWeight.bold : FontWeight.normal,
-                color: valueColor ?? (isRecurring 
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).textTheme.bodyLarge?.color),
-              ),
-              textAlign: TextAlign.end,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Label
+                Text(
+                  label,
+                  style: theme.textTheme.bodyMedium!.copyWith(
+                    color: isDarkMode ? Colors.white70 : Colors.black54,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                
+                // Value with special styling for recurring patterns
+                isRecurring 
+                ? _buildRecurringEventValue(context, value, valueColor: valueColor)
+                : Text(
+                  value,
+                  style: theme.textTheme.bodyLarge!.copyWith(
+                    color: valueColor ?? (isDarkMode ? Colors.white : Colors.black87),
+                    fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // Helper method to build text for recurring event information with proper formatting
+  // Helper method to convert string event type to EventType enum
+  EventType _parseEventType(dynamic eventTypeStr) {
+    if (eventTypeStr == null) return EventType.free;
+    
+    switch(eventTypeStr.toString().toLowerCase()) {
+      case 'paid':
+        return EventType.paid;
+      case 'invitation':
+        return EventType.invitation;
+      case 'free':
+      default:
+        return EventType.free;
+    }
+  }
+
+  Widget _buildRecurringEventValue(BuildContext context, String value, {Color? valueColor}) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    final lines = value.split('\n');
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < lines.length; i++)
+          Padding(
+            padding: EdgeInsets.only(bottom: i < lines.length - 1 ? 4.0 : 0),
+            child: Text(
+              lines[i],
+              style: i == 0 
+                  ? theme.textTheme.bodyLarge!.copyWith(
+                      color: valueColor ?? (isDarkMode ? Colors.amber : Colors.amber.shade700),
+                      fontWeight: FontWeight.bold,
+                    )
+                  : theme.textTheme.bodyMedium!.copyWith(
+                      color: valueColor ?? (isDarkMode ? Colors.white : Colors.black87),
+                      height: 1.3,
+                    ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -1541,10 +1589,15 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     String formattedEventDate = 'Date not specified';
     String formattedTime = '8:00 p.m.';
     bool isRecurringEvent = false;
+    String recurringLabel = '';
+    Color recurringColor = Colors.amber;
+    IconData recurringIcon = Icons.repeat;
     
     try {
       // Get the start date from any of the possible field names
       DateTime? eventStartDate;
+      DateTime? eventEndDate;
+      
       if (event['start_time'] != null) {
         eventStartDate = DateTime.parse(event['start_time']);
       } else if (event['start_date'] != null) {
@@ -1553,82 +1606,62 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         eventStartDate = DateTime.parse(event['start_datetime']);
       }
       
+      if (event['end_time'] != null) {
+        eventEndDate = DateTime.parse(event['end_time']);
+      } else if (event['end_date'] != null) {
+        eventEndDate = DateTime.parse(event['end_date']);
+      } else if (event['end_datetime'] != null) {
+        eventEndDate = DateTime.parse(event['end_datetime']);
+      }
+      
       // Check if this is a recurring event
       if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty && eventStartDate != null) {
         isRecurringEvent = true;
         
-        // Parse the recurring pattern to get the correct first occurrence date
-        try {
-          final patternData = json.decode(event['recurring_pattern']);
-          final type = patternData['type'] as String? ?? 'none';
+        // Create a temporary Event object to use with RecurringEventUtils
+        final tempEvent = Event(
+          id: event['id'] ?? '',
+          title: event['title'] ?? '',
+          description: event['description'] ?? '',
+          location: event['location'] ?? '',
+          startTime: eventStartDate,
+          endTime: eventEndDate ?? (eventStartDate.add(const Duration(hours: 1))),
+          recurringPattern: event['recurring_pattern'],
+          createdAt: event['created_at'] != null ? DateTime.parse(event['created_at']) : DateTime.now(),
+          updatedAt: event['updated_at'] != null ? DateTime.parse(event['updated_at']) : DateTime.now(),
+          creatorId: event['creator_id'] ?? '',
+          eventType: _parseEventType(event['event_type']),
+          status: EventStatus.upcoming,
+          tags: event['tags'] != null ? List<String>.from(event['tags']) : [],
+          visibility: EventVisibility.public,
+        );
+        
+        // Get next occurrence info using RecurringEventUtils
+        final nextOccurrenceInfo = RecurringEventUtils.getNextOccurrenceInfo(tempEvent);
+        
+        // Use the next occurrence date instead of the original date
+        if (nextOccurrenceInfo['hasPattern']) {
+          final nextStartDate = nextOccurrenceInfo['nextOccurrence'] as DateTime;
+          final isCompleted = nextOccurrenceInfo['isCompleted'] as bool;
           
-          // Special handling for weekly patterns to calculate the first occurrence
-          if (type == 'weekly' && patternData['weekdays'] != null) {
-            final List<dynamic> weekdays = patternData['weekdays'];
-            if (weekdays.isNotEmpty) {
-              // Convert weekday names to day numbers (1-7 where 1 is Monday)
-              final Map<String, int> weekdayMap = {
-                'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7
-              };
-              
-              // Get day numbers from weekday strings
-              final List<int> selectedDays = weekdays
-                  .map((day) => weekdayMap[day.toString()] ?? 0)
-                  .where((day) => day > 0)
-                  .toList();
-              
-              if (selectedDays.isNotEmpty) {
-                // Get current day of week (1-7)
-                final int startDayOfWeek = eventStartDate.weekday;
-                
-                // Find the next selected day
-                int daysToAdd = 0;
-                bool foundDay = false;
-                
-                // Check if current day is selected
-                if (selectedDays.contains(startDayOfWeek)) {
-                  foundDay = true;
-                } else {
-                  // Find the next closest selected day
-                  for (int i = 1; i <= 7; i++) {
-                    final int checkDay = (startDayOfWeek + i) > 7 ? 
-                        (startDayOfWeek + i) - 7 : (startDayOfWeek + i);
-                    
-                    if (selectedDays.contains(checkDay)) {
-                      daysToAdd = i;
-                      foundDay = true;
-                      break;
-                    }
-                  }
-                }
-                
-                // Calculate first occurrence date
-                if (foundDay && daysToAdd > 0) {
-                  eventStartDate = eventStartDate.add(Duration(days: daysToAdd));
-                }
-              }
-            }
-          }
-          
-          // Format the date and time using the calculated first occurrence
-          if (eventStartDate != null) {
-            formattedEventDate = DateFormat('MMM dd, yyyy').format(eventStartDate!);
-            formattedTime = DateFormat('h:mm a').format(eventStartDate!);
-          }
-          
-        } catch (e) {
-          debugPrint('Error parsing recurring pattern: $e');
-          // Fallback to standard formatting if there's an error
-          if (eventStartDate != null) {
-            formattedEventDate = DateFormat('MMM dd, yyyy').format(eventStartDate!);
-            formattedTime = DateFormat('h:mm a').format(eventStartDate!);
+          // Only update the date if the series isn't completed
+          if (!isCompleted) {
+            eventStartDate = nextStartDate;
+            
+            // Get recurring pattern details for display
+            recurringLabel = nextOccurrenceInfo['label'] as String;
+            recurringColor = nextOccurrenceInfo['color'] as Color;
+            recurringIcon = nextOccurrenceInfo['icon'] as IconData;
           }
         }
+        
+        // Format the date and time using the calculated next occurrence
+        formattedEventDate = DateFormat('MMM dd, yyyy').format(eventStartDate);
+        formattedTime = DateFormat('h:mm a').format(eventStartDate);
       } else if (eventStartDate != null) {
         // Standard date formatting for non-recurring events
-        // At this point, we know eventStartDate is not null, so we use the null assertion operator (!)
-        formattedEventDate = DateFormat('MMM dd, yyyy').format(eventStartDate!);
-        formattedTime = DateFormat('h:mm a').format(eventStartDate!);
+        formattedEventDate = DateFormat('MMM dd, yyyy').format(eventStartDate);
+        formattedTime = DateFormat('h:mm a').format(eventStartDate);
       }
     } catch (e) {
       debugPrint('Error formatting event date: $e');
@@ -1771,6 +1804,33 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Show recurring badge if applicable
+                              if (isRecurringEvent) ...[  
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  margin: const EdgeInsets.only(bottom: 4),
+                                  decoration: BoxDecoration(
+                                    color: recurringColor.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: recurringColor.withOpacity(0.3)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(recurringIcon, size: 10, color: recurringColor),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        recurringLabel,
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: recurringColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                               Text(
                                 'Date',
                                 style: const TextStyle(
@@ -1781,10 +1841,10 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 formattedEventDate,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black, // Always solid black
+                                  color: isRecurringEvent ? recurringColor : Colors.black,
                                 ),
                               ),
                             ],
@@ -2046,41 +2106,93 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   }
 
   Widget _buildEventDetails(BuildContext context, Map<String, dynamic> event) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
+  final theme = Theme.of(context);
+  final isDarkMode = theme.brightness == Brightness.dark;
 
-    // Event date parsing - with null safety
-    DateTime? eventStartDate;
-    DateTime? eventEndDate;
-    String formattedEventDate;
-    bool isRecurringEvent = false;
+  // Event date parsing - with null safety
+  DateTime? eventStartDate;
+  DateTime? eventEndDate;
+  String formattedEventDate;
+  bool isRecurringEvent = false;
+  Color dateColor = isDarkMode ? Colors.white : Colors.black87;
+  IconData dateIcon = Icons.access_time;
 
-    try {
-      // Safely parse start date if available - checking for all possible field names
-      if (event['start_time'] != null) {
-        eventStartDate = DateTime.parse(event['start_time']);
-        debugPrint('Using start_time field: ${event['start_time']}');
-      } else if (event['start_date'] != null) {
-        eventStartDate = DateTime.parse(event['start_date']);
-        debugPrint('Using start_date field: ${event['start_date']}');
-      } else if (event['start_datetime'] != null) {
-        eventStartDate = DateTime.parse(event['start_datetime']);
-        debugPrint('Using start_datetime field: ${event['start_datetime']}');
-      }
+  try {
+    // Safely parse start date if available - checking for all possible field names
+    if (event['start_time'] != null) {
+      eventStartDate = DateTime.parse(event['start_time']);
+      debugPrint('Using start_time field: ${event['start_time']}');
+    } else if (event['start_date'] != null) {
+      eventStartDate = DateTime.parse(event['start_date']);
+      debugPrint('Using start_date field: ${event['start_date']}');
+    } else if (event['start_datetime'] != null) {
+      eventStartDate = DateTime.parse(event['start_datetime']);
+      debugPrint('Using start_datetime field: ${event['start_datetime']}');
+    }
 
-      // Safely parse end date if available - checking for all possible field names
-      if (event['end_time'] != null) {
-        eventEndDate = DateTime.parse(event['end_time']);
-      } else if (event['end_date'] != null) {
-        eventEndDate = DateTime.parse(event['end_date']);
-      } else if (event['end_datetime'] != null) {
-        eventEndDate = DateTime.parse(event['end_datetime']);
-      }
+    // Safely parse end date if available - checking for all possible field names
+    if (event['end_time'] != null) {
+      eventEndDate = DateTime.parse(event['end_time']);
+    } else if (event['end_date'] != null) {
+      eventEndDate = DateTime.parse(event['end_date']);
+    } else if (event['end_datetime'] != null) {
+      eventEndDate = DateTime.parse(event['end_datetime']);
+    }
 
-      // Check if the event has a recurring pattern
-      if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty) {
-        isRecurringEvent = true;
-        // Format the recurring pattern information
+    // Check if the event has a recurring pattern
+    if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty) {
+      isRecurringEvent = true;
+      
+      // Create a temporary Event object to use with RecurringEventUtils
+      final tempEvent = Event(
+        id: event['id'] ?? '',
+        title: event['title'] ?? '',
+        description: event['description'] ?? '',
+        location: event['location'] ?? '',
+        startTime: eventStartDate ?? DateTime.now(),
+        endTime: eventEndDate ?? (eventStartDate?.add(const Duration(hours: 1)) ?? DateTime.now()),
+        recurringPattern: event['recurring_pattern'],
+        createdAt: event['created_at'] != null ? DateTime.parse(event['created_at']) : DateTime.now(),
+        updatedAt: event['updated_at'] != null ? DateTime.parse(event['updated_at']) : DateTime.now(),
+        creatorId: event['creator_id'] ?? '',
+        eventType: _parseEventType(event['event_type']),
+        status: EventStatus.upcoming,
+        tags: event['tags'] != null ? List<String>.from(event['tags']) : [],
+        visibility: EventVisibility.public,
+      );
+      
+      // Get next occurrence info using RecurringEventUtils
+      final nextOccurrenceInfo = RecurringEventUtils.getNextOccurrenceInfo(tempEvent);
+      
+      // Use the next occurrence date instead of the original date
+      if (nextOccurrenceInfo['hasPattern']) {
+        final nextStartDate = nextOccurrenceInfo['nextOccurrence'] as DateTime;
+        final nextEndDate = nextOccurrenceInfo['nextEndTime'] as DateTime;
+        final isCompleted = nextOccurrenceInfo['isCompleted'] as bool;
+        
+        // Update icon and color based on pattern type
+        dateIcon = nextOccurrenceInfo['icon'] as IconData;
+        dateColor = isCompleted ? Colors.grey : (nextOccurrenceInfo['color'] as Color);
+        
+        // Format the recurring pattern information with next occurrence date
+        formattedEventDate = '${nextOccurrenceInfo['label']} Recurring Event\n';
+        formattedEventDate += 'Next: ${DateFormat('EEE, MMM dd, yyyy').format(nextStartDate)}\n';
+        
+        // Add time information
+        String timeStr = DateFormat('hh:mm a').format(nextStartDate);
+        if (nextEndDate != null) {
+          timeStr += ' to ${DateFormat('hh:mm a').format(nextEndDate)}';
+        }
+        formattedEventDate += 'Time: $timeStr';
+        
+        // Add pattern description
+        formattedEventDate += '\n\n' + _formatRecurringPattern(
+          event['recurring_pattern'], 
+          eventStartDate ?? DateTime.now(),
+          eventEndDate
+        );
+      } else {
+        // Fallback to basic formatting if pattern info couldn't be calculated
         formattedEventDate = _formatRecurringPattern(
           event['recurring_pattern'], 
           eventStartDate ?? DateTime.now(),
@@ -2095,27 +2207,28 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
           }
           formattedEventDate += '\nTime: $timeStr';
         }
-      } else {
-        // Standard date formatting for non-recurring events
-        if (eventStartDate != null) {
-          if (eventEndDate != null) {
-            formattedEventDate =
-            '${DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(
-                eventStartDate)} to ${DateFormat('hh:mm a').format(
-                eventEndDate)}';
-          } else {
-            formattedEventDate =
-                DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(eventStartDate);
-          }
-        } else {
-          formattedEventDate = 'Date not specified';
-        }
       }
-    } catch (e) {
-      debugPrint('Error parsing event date: $e');
-      // Fallback if date parsing fails
-      formattedEventDate = 'Date information unavailable';
+    } else {
+      // Standard date formatting for non-recurring events
+      if (eventStartDate != null) {
+        if (eventEndDate != null) {
+          formattedEventDate =
+          '${DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(
+              eventStartDate)} to ${DateFormat('hh:mm a').format(
+              eventEndDate)}';
+        } else {
+          formattedEventDate =
+              DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(eventStartDate);
+        }
+      } else {
+        formattedEventDate = 'Date not specified';
+      }
     }
+  } catch (e) {
+    debugPrint('Error parsing event date: $e');
+    // Fallback if date parsing fails
+    formattedEventDate = 'Date information unavailable';
+  }  
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
