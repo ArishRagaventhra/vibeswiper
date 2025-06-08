@@ -41,7 +41,7 @@ android {
         applicationId = "com.packages.scompass"
         minSdkVersion flutter.minSdkVersion
         targetSdk = 34  // Target Android 14 for now
-        versionCode = 29
+        versionCode = 30
         versionName = "1.0.6"
         multiDexEnabled true
         

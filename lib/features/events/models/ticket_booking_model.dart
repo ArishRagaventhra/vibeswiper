@@ -18,6 +18,7 @@ class TicketBooking {
   final PaymentStatus paymentStatus;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? bookedOccurrenceDate;
 
   const TicketBooking({
     required this.id,
@@ -32,6 +33,7 @@ class TicketBooking {
     required this.paymentStatus,
     required this.createdAt,
     required this.updatedAt,
+    this.bookedOccurrenceDate,
   });
 
   TicketBooking copyWith({
@@ -47,6 +49,7 @@ class TicketBooking {
     PaymentStatus? paymentStatus,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? bookedOccurrenceDate,
   }) {
     return TicketBooking(
       id: id ?? this.id,
@@ -61,6 +64,7 @@ class TicketBooking {
       paymentStatus: paymentStatus ?? this.paymentStatus,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      bookedOccurrenceDate: bookedOccurrenceDate ?? this.bookedOccurrenceDate,
     );
   }
 
@@ -78,6 +82,7 @@ class TicketBooking {
       'payment_status': paymentStatus.toString().split('.').last,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'booked_occurrence_date': bookedOccurrenceDate?.toIso8601String(),
     };
   }
 
@@ -101,6 +106,9 @@ class TicketBooking {
       ),
       createdAt: DateTime.parse(map['created_at']),
       updatedAt: DateTime.parse(map['updated_at']),
+      bookedOccurrenceDate: map['booked_occurrence_date'] != null 
+          ? DateTime.parse(map['booked_occurrence_date'])
+          : null,
     );
   }
 

@@ -6,7 +6,7 @@ class AppTheme {
   static const primaryColor = Color(0xFF000000); // Black for light theme
   static const secondaryColor = Color(0xFF757575);
   static const backgroundColor = Color(0xFFFFFFFF);
-  static const surfaceColor = Color(0xFFF5F5F5);
+  static const surfaceColor = Color(0xFFF8F8F8); // Slightly lighter for better contrast
   static const errorColor = Color(0xFFE53935);
   static const successColor = Color(0xFF43A047);
   static const warningColor = Color(0xFFFFD42A);
@@ -14,20 +14,20 @@ class AppTheme {
   // Dark Theme Colors
   static const darkPrimaryColor = Color(0xFFFFFFFF); // White for dark theme
   static const darkSecondaryColor = Color(0xFF9E9E9E);
-  static const darkBackgroundColor = Color(0xFF121212);
-  static const darkSurfaceColor = Color(0xFF1E1E1E);
+  static const darkBackgroundColor = Color(0xFF121212); // Material dark background
+  static const darkSurfaceColor = Color(0xFF1E1E1E); // Material dark surface
   static const darkErrorColor = Color(0xFFCF6679);
   static const darkSuccessColor = Color(0xFF81C784);
   static const darkWarningColor = Color(0xFFFFD42A);
 
   // Light Theme Text Colors
-  static const primaryTextColor = Color(0xFF000000); // Black text for light theme
+  static const primaryTextColor = Color(0xFF000000);
   static const secondaryTextColor = Color(0xFF757575);
   static const backgroundTextColor = Color(0xFF000000);
   static const lightTextColor = Color(0xFFFFFFFF);
 
   // Dark Theme Text Colors
-  static const darkPrimaryTextColor = Color(0xFFFFFFFF); // White text for dark theme
+  static const darkPrimaryTextColor = Color(0xFFFFFFFF);
   static const darkSecondaryTextColor = Color(0xFFB0B0B0);
   static const darkBackgroundTextColor = Color(0xFFFFFFFF);
   static const darkLightTextColor = Color(0xFF121212);
@@ -190,7 +190,12 @@ class AppTheme {
         secondary: secondaryColor,
         error: errorColor,
         surface: surfaceColor,
-        onPrimary: lightTextColor, // White text on black background
+        background: backgroundColor,
+        onBackground: primaryTextColor,
+        onSurface: primaryTextColor,
+        onPrimary: lightTextColor,
+        onSecondary: lightTextColor,
+        shadow: Colors.black,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: backgroundColor,
@@ -232,7 +237,12 @@ class AppTheme {
         secondary: darkSecondaryColor,
         error: darkErrorColor,
         surface: darkSurfaceColor,
-        onPrimary: darkLightTextColor, // Black text on white background
+        background: darkBackgroundColor,
+        onBackground: darkPrimaryTextColor,
+        onSurface: darkPrimaryTextColor,
+        onPrimary: darkLightTextColor,
+        onSecondary: darkLightTextColor,
+        shadow: Colors.black,
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: darkBackgroundColor, // Dark background for app bar

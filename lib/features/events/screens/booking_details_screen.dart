@@ -11,7 +11,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:file_saver/file_saver.dart';
-import 'dart:convert';
 import '../controllers/booking_history_controller.dart';
 import '../../../config/theme.dart';
 import '../../../config/routes.dart';
@@ -58,15 +57,12 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     final booking = state.selectedBooking;
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    final screenSize = MediaQuery
-        .of(context)
-        .size;
+    final screenSize = MediaQuery.of(context).size;
     final isDesktop = screenSize.width > 1024;
     final isTablet = screenSize.width > 768 && screenSize.width <= 1024;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? Colors.black : theme
-          .scaffoldBackgroundColor,
+      backgroundColor: isDarkMode ? Colors.black : theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Booking Details',
@@ -76,8 +72,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
           ),
         ),
         elevation: 0,
-        backgroundColor: isDarkMode ? Colors.black : theme
-            .scaffoldBackgroundColor,
+        backgroundColor: isDarkMode ? Colors.black : theme.scaffoldBackgroundColor,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back_ios,
@@ -227,19 +222,19 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                           icon: const Icon(Icons.download),
                           label: const Text('Download Ticket'),
                           style: ButtonStyle(
-                            backgroundColor: MaterialStateProperty.all(
+                            backgroundColor: WidgetStateProperty.all(
                               isDarkMode ? theme.primaryColorDark : theme
                                   .primaryColor,
                             ),
-                            foregroundColor: MaterialStateProperty.all(
+                            foregroundColor: WidgetStateProperty.all(
                                 Colors.white),
-                            padding: MaterialStateProperty.all(
+                            padding: WidgetStateProperty.all(
                               const EdgeInsets.symmetric(
                                 vertical: 12,
                                 horizontal: 24,
                               ),
                             ),
-                            shape: MaterialStateProperty.all(
+                            shape: WidgetStateProperty.all(
                               RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(50),
                               ),
@@ -290,18 +285,12 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
           children: [
             Text(
               'Oops! Something went wrong',
-              style: Theme
-                  .of(context)
-                  .textTheme
-                  .titleLarge,
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
               state.error!,
-              style: Theme
-                  .of(context)
-                  .textTheme
-                  .bodyMedium,
+              style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -326,131 +315,16 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
 
     final event = booking['events'] as Map<String, dynamic>;
     final payments = booking['payment'] as List<dynamic>?;
-    final metrics = booking['metrics'] as List<dynamic>?;
-
-    // Debug output to help identify all available fields
-    debugPrint('Booking details - Event data keys: ${event.keys.join(', ')}');
-    debugPrint('Booking details - Event start_date: ${event['start_date']}');
-    debugPrint('Booking details - Event date: ${event['date']}');
-    debugPrint('Booking details - Full event data: $event');
-
-    final bookingStatus = booking['booking_status'] as String;
-    final paymentStatus = booking['payment_status'] as String;
-    final isPaid = paymentStatus == 'paid';
-    final isConfirmed = bookingStatus == 'confirmed';
-
-    final bookingDate = DateTime.parse(booking['created_at']);
-    final formattedBookingDate = DateFormat('MMM dd, yyyy - hh:mm a').format(
-        bookingDate);
-
-    // Event date parsing - with null safety
-    DateTime? eventStartDate;
-    DateTime? eventEndDate;
-    String formattedEventDate;
-    bool isRecurringEvent = false;
-    IconData dateTimeIcon = Icons.calendar_today;
-    Color dateTimeIconColor = theme.primaryColor;
-
-    try {
-      // Safely parse start date if available - checking for all possible field names
-      if (event['start_time'] != null) {
-        eventStartDate = DateTime.parse(event['start_time']);
-        debugPrint('Using start_time field: ${event['start_time']}');
-      } else if (event['start_date'] != null) {
-        eventStartDate = DateTime.parse(event['start_date']);
-        debugPrint('Using start_date field: ${event['start_date']}');
-      } else if (event['start_datetime'] != null) {
-        eventStartDate = DateTime.parse(event['start_datetime']);
-        debugPrint('Using start_datetime field: ${event['start_datetime']}');
-      }
-
-      // Safely parse end date if available - checking for all possible field names
-      if (event['end_time'] != null) {
-        eventEndDate = DateTime.parse(event['end_time']);
-      } else if (event['end_date'] != null) {
-        eventEndDate = DateTime.parse(event['end_date']);
-      } else if (event['end_datetime'] != null) {
-        eventEndDate = DateTime.parse(event['end_datetime']);
-      }
-
-      // Check if the event has a recurring pattern
-      if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty) {
-        isRecurringEvent = true;
-        // Format the recurring pattern information
-        formattedEventDate = _formatRecurringPattern(
-          event['recurring_pattern'], 
-          eventStartDate ?? DateTime.now(),
-          eventEndDate
-        );
-        
-        // Set the appropriate icon based on pattern type
-        try {
-          final patternData = json.decode(event['recurring_pattern']);
-          final type = patternData['type'] as String? ?? 'none';
-          
-          switch (type) {
-            case 'daily':
-              dateTimeIcon = Icons.calendar_view_day;
-              dateTimeIconColor = Colors.blue;
-              break;
-            case 'weekly':
-              dateTimeIcon = Icons.calendar_view_week;
-              dateTimeIconColor = Colors.green;
-              break;
-            case 'monthly':
-              dateTimeIcon = Icons.calendar_view_month;
-              dateTimeIconColor = Colors.purple;
-              break;
-            default:
-              dateTimeIcon = Icons.repeat;
-              dateTimeIconColor = Colors.orange;
-          }
-        } catch (e) {
-          debugPrint('Error parsing recurring pattern type: $e');
-          dateTimeIcon = Icons.repeat;
-          dateTimeIconColor = theme.colorScheme.primary;
-        }
-        
-        // Add time information to the recurring pattern
-        if (eventStartDate != null) {
-          String timeStr = DateFormat('hh:mm a').format(eventStartDate);
-          if (eventEndDate != null) {
-            timeStr += ' to ${DateFormat('hh:mm a').format(eventEndDate)}';
-          }
-          formattedEventDate += '\nTime: $timeStr';
-        }
-      } else {
-        // Standard date formatting for non-recurring events
-        if (eventStartDate != null) {
-          if (eventEndDate != null) {
-            formattedEventDate =
-            '${DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(
-                eventStartDate)} to ${DateFormat('hh:mm a').format(
-                eventEndDate)}';
-          } else {
-            formattedEventDate =
-                DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(eventStartDate);
-          }
-        } else {
-          formattedEventDate = 'Date not specified';
-        }
-      }
-    } catch (e) {
-      debugPrint('Error parsing event date: $e');
-      // Fallback if date parsing fails
-      formattedEventDate = 'Date information unavailable';
-    }
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title Card positioned before images
+          // Title Card
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            margin: const EdgeInsets.only(
-                bottom: 8, left: 16, right: 16, top: 16),
+            margin: const EdgeInsets.only(bottom: 8, left: 16, right: 16, top: 16),
             decoration: BoxDecoration(
               gradient: AppTheme.primaryGradient,
               borderRadius: BorderRadius.circular(16),
@@ -471,11 +345,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                     Expanded(
                       child: Text(
                         event['title'] ?? 'Unknown Event',
-                        style: Theme
-                            .of(context)
-                            .textTheme
-                            .headlineSmall!
-                            .copyWith(
+                        style: Theme.of(context).textTheme.headlineSmall!.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -494,7 +364,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                         border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
                       ),
                       child: Text(
-                        _getStatusText(paymentStatus, bookingStatus),
+                        _getStatusText(booking['payment_status'] ?? '', booking['booking_status'] ?? ''),
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -504,327 +374,22 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                // Date display with enhanced visual indicators for recurring events
-                if (isRecurringEvent) ...[  
-                  Row(
-                    children: [
-                      Icon(
-                        dateTimeIcon,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: dateTimeIconColor.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
-                        ),
-                        child: Text(
-                          'Recurring',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    formattedEventDate,
-                    style: Theme
-                        .of(context)
-                        .textTheme
-                        .bodyMedium!
-                        .copyWith(
-                      color: Colors.white.withOpacity(0.9),
-                    ),
-                  ),
-                ] else ...[
-                  // Standard date display for regular events
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          formattedEventDate,
-                          style: Theme
-                              .of(context)
-                              .textTheme
-                              .bodyMedium!
-                              .copyWith(
-                            color: Colors.white.withOpacity(0.9),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
               ],
             ),
           ),
 
-          // Event images displayed vertically with rounded corners
+          // Event images
           _buildEventImagesGallery(context, event),
 
+          // Booking details
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-
-                // Booking reference card with glassmorphism effect
-                Card(
-                  elevation: 0,
-                  color: Theme
-                      .of(context)
-                      .cardColor
-                      .withOpacity(0.8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: Theme
-                          .of(context)
-                          .primaryColor
-                          .withOpacity(0.1),
-                      width: 1,
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Booking Reference',
-                              style: Theme
-                                  .of(context)
-                                  .textTheme
-                                  .bodyLarge!
-                                  .copyWith(
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            Text(
-                              booking['booking_reference'] ?? '',
-                              style: Theme
-                                  .of(context)
-                                  .textTheme
-                                  .bodyLarge!
-                                  .copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        if (isPaid && isConfirmed)
-                          Center(
-                            child: QrImageView(
-                              data: booking['booking_reference'] ?? '',
-                              version: QrVersions.auto,
-                              size: 150,
-                              backgroundColor: Colors.white,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
+                _buildBookingDetails(context, booking),
                 const SizedBox(height: 24),
-
-                // Booking Details Section with modern card design
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Theme
-                        .of(context)
-                        .cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme
-                          .of(context)
-                          .dividerColor
-                          .withOpacity(0.1),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.confirmation_number_outlined,
-                            color: Theme
-                                .of(context)
-                                .primaryColor,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Booking Details',
-                            style: Theme
-                                .of(context)
-                                .textTheme
-                                .titleMedium!
-                                .copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Theme
-                                  .of(context)
-                                  .primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDetailRow(context, 'Booking Date', formattedBookingDate),
-                      _buildDetailRow(
-                          context, 'Quantity', '${booking['quantity']}'),
-                      _buildDetailRow(context, 'Price per ticket',
-                          '₹${booking['unit_price']}'),
-                      const Divider(height: 24),
-                      _buildDetailRow(
-                        context,
-                        'Total Amount',
-                        '₹${booking['total_amount']}',
-                        isHighlighted: true,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Event Details Section with modern design
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Theme
-                        .of(context)
-                        .cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme
-                          .of(context)
-                          .dividerColor
-                          .withOpacity(0.1),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.event_outlined,
-                            color: Theme
-                                .of(context)
-                                .primaryColor,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Event Details',
-                            style: Theme
-                                .of(context)
-                                .textTheme
-                                .titleMedium!
-                                .copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Theme
-                                  .of(context)
-                                  .primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDetailRow(
-                        context,
-                        'Date & Time',
-                        formattedEventDate,
-                        icon: Icons.access_time,
-                      ),
-                      if (event['location'] != null)
-                        _buildDetailRow(
-                          context,
-                          'Location',
-                          event['location'],
-                          icon: Icons.location_on_outlined,
-                        ),
-                      if (event['organizer_name'] != null)
-                        _buildDetailRow(
-                          context,
-                          'Organizer',
-                          event['organizer_name'],
-                          icon: Icons.person_outline,
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Payment Details Section
-                if (payments != null && payments.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionTitle(context, 'Payment Details'),
-                      const SizedBox(height: 12),
-                      _buildDetailRow(
-                        context,
-                        'Status',
-                        paymentStatus.toUpperCase(),
-                        valueColor: _getStatusColor(
-                            paymentStatus, bookingStatus),
-                      ),
-                      if (payments.first['payment_method'] != null)
-                        _buildDetailRow(
-                          context,
-                          'Method',
-                          payments.first['payment_method'],
-                        ),
-                      if (payments.first['payment_reference'] != null)
-                        _buildDetailRow(
-                          context,
-                          'Reference',
-                          payments.first['payment_reference'],
-                        ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-
-                // Additional spacing at the bottom
+                _buildEventDetails(context, event),
                 const SizedBox(height: 80),
               ],
             ),
@@ -835,12 +400,8 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   }
 
   Widget _buildBottomBar(BuildContext context, Map<String, dynamic> booking) {
-    final status = booking['status'] as String? ?? '';
     final paymentStatus = booking['payment_status'] as String? ?? '';
-    
-    final bookingStatus = _getStatusText(paymentStatus, status);
-    final statusColor = _getStatusColor(paymentStatus, status);
-    
+    final bookingStatus = booking['status'] as String? ?? '';
     final hasQrCode = booking['ticket_number'] != null;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
@@ -868,7 +429,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                   onPressed: () => _downloadTicket(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: hasQrCode 
-                        ? (isDarkMode ? theme.colorScheme.primary : theme.colorScheme.primary)
+                        ? theme.colorScheme.primary
                         : Colors.purple,
                     foregroundColor: Colors.white,
                     elevation: 2,
@@ -946,7 +507,6 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         bool isHighlighted = false,
         Color? valueColor,
         IconData? icon,
-        bool isRecurring = false,
       }) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
@@ -956,24 +516,19 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icon
           if (icon != null) ...[  
             Icon(
               icon,
               size: 20,
-              color: isRecurring 
-                ? (valueColor ?? Colors.amber)  // Use provided color or default amber for recurring events
-                : (isDarkMode ? Colors.white70 : Colors.black54),
+              color: isDarkMode ? Colors.white70 : Colors.black54,
             ),
             const SizedBox(width: 8),
           ],
           
-          // Label and Value
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Label
                 Text(
                   label,
                   style: theme.textTheme.bodyMedium!.copyWith(
@@ -983,10 +538,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                 ),
                 const SizedBox(height: 4),
                 
-                // Value with special styling for recurring patterns
-                isRecurring 
-                ? _buildRecurringEventValue(context, value, valueColor: valueColor)
-                : Text(
+                Text(
                   value,
                   style: theme.textTheme.bodyLarge!.copyWith(
                     color: valueColor ?? (isDarkMode ? Colors.white : Colors.black87),
@@ -1001,205 +553,22 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     );
   }
 
-  // Helper method to build text for recurring event information with proper formatting
-  // Helper method to convert string event type to EventType enum
-  EventType _parseEventType(dynamic eventTypeStr) {
-    if (eventTypeStr == null) return EventType.free;
-    
-    switch(eventTypeStr.toString().toLowerCase()) {
-      case 'paid':
-        return EventType.paid;
-      case 'invitation':
-        return EventType.invitation;
-      case 'free':
-      default:
-        return EventType.free;
-    }
-  }
-
-  Widget _buildRecurringEventValue(BuildContext context, String value, {Color? valueColor}) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-    final lines = value.split('\n');
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (int i = 0; i < lines.length; i++)
-          Padding(
-            padding: EdgeInsets.only(bottom: i < lines.length - 1 ? 4.0 : 0),
-            child: Text(
-              lines[i],
-              style: i == 0 
-                  ? theme.textTheme.bodyLarge!.copyWith(
-                      color: valueColor ?? (isDarkMode ? Colors.amber : Colors.amber.shade700),
-                      fontWeight: FontWeight.bold,
-                    )
-                  : theme.textTheme.bodyMedium!.copyWith(
-                      color: valueColor ?? (isDarkMode ? Colors.white : Colors.black87),
-                      height: 1.3,
-                    ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  String _formatRecurringPattern(String patternJson, DateTime startDate, DateTime? endDate) {
-    try {
-      final patternData = json.decode(patternJson);
-      final type = patternData['type'] as String? ?? 'none';
-      
-      if (type == 'none') {
-        // Fallback to regular date format if pattern type is none
-        return DateFormat('EEE, MMM dd, yyyy').format(startDate);
-      }
-      
-      // Adjust first occurrence date for weekly patterns
-      DateTime firstOccurrence = startDate;
-      if (type == 'weekly') {
-        final weekdays = patternData['weekdays'] as List?;
-        if (weekdays != null && weekdays.isNotEmpty) {
-          // Convert weekday names to day numbers (1-7 where 1 is Monday)
-          final Map<String, int> weekdayMap = {
-            'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7
-          };
-          
-          // Get day numbers from weekday strings
-          final List<int> selectedDays = weekdays
-              .map((day) => weekdayMap[day.toString()] ?? 0)
-              .where((day) => day > 0)
-              .toList();
-          
-          if (selectedDays.isNotEmpty) {
-            // Get current day of week (1-7)
-            final int startDayOfWeek = startDate.weekday;
-            
-            // Find the next selected day
-            int daysToAdd = 0;
-            bool foundDay = false;
-            
-            // Check if current day is selected
-            if (selectedDays.contains(startDayOfWeek)) {
-              foundDay = true;
-            } else {
-              // Find the next closest selected day
-              for (int i = 1; i <= 7; i++) {
-                final int checkDay = (startDayOfWeek + i) > 7 ? 
-                    (startDayOfWeek + i) - 7 : (startDayOfWeek + i);
-                
-                if (selectedDays.contains(checkDay)) {
-                  daysToAdd = i;
-                  foundDay = true;
-                  break;
-                }
-              }
-            }
-            
-            // Calculate first occurrence date
-            if (foundDay && daysToAdd > 0) {
-              firstOccurrence = startDate.add(Duration(days: daysToAdd));
-            }
-          }
-        }
-      }
-      
-      // Build the recurring pattern description
-      String patternDesc = '';
-      switch (type) {
-        case 'daily':
-          patternDesc = 'Repeats daily';
-          break;
-        case 'weekly':
-          final weekdays = patternData['weekdays'] as List?;
-          if (weekdays != null && weekdays.isNotEmpty) {
-            patternDesc = 'Repeats weekly on ${weekdays.join(', ')}';
-          } else {
-            patternDesc = 'Repeats weekly';
-          }
-          break;
-        case 'monthly':
-          final dayOfMonth = patternData['dayOfMonth'] as int? ?? startDate.day;
-          patternDesc = 'Repeats monthly on day $dayOfMonth';
-          break;
-        case 'custom':
-          patternDesc = 'Custom recurring pattern';
-          break;
-        default:
-          patternDesc = 'Recurring event';
-      }
-      
-      // Add end condition
-      String endInfo = '';
-      if (patternData.containsKey('endDate')) {
-        final endDate = DateTime.parse(patternData['endDate']);
-        endInfo = ' until ${DateFormat('MMM d, y').format(endDate)}';
-      } else if (patternData.containsKey('occurrences')) {
-        final occurrences = patternData['occurrences'];
-        endInfo = ' for $occurrences occurrences';
-      }
-      
-      // Combine all information without time - just the pattern and first occurrence date
-      String result = '$patternDesc$endInfo';
-      result += '\nFirst occurrence: ${DateFormat('E, MMM d, yyyy').format(firstOccurrence)}';
-      
-      return result;
-    } catch (e) {
-      debugPrint('Error formatting recurring pattern: $e');
-      // Fallback to standard date format
-      return DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(startDate);
-    }
-  }
-
-  Color _getStatusColor(String paymentStatus, String bookingStatus) {
-    if (paymentStatus == 'paid' && bookingStatus == 'confirmed') {
-      return Colors.green;
-    } else if (paymentStatus == 'paid' && bookingStatus == 'cancelled') {
-      return Colors.red;
-    } else if (paymentStatus == 'failed') {
-      return Colors.red;
-    } else if (paymentStatus == 'pending') {
-      return Colors.orange;
-    } else {
-      return Colors.grey;
-    }
-  }
-
-  String _getStatusText(String paymentStatus, String bookingStatus) {
-    if (paymentStatus == 'paid' && bookingStatus == 'confirmed') {
-      return 'Confirmed';
-    } else if (paymentStatus == 'paid' && bookingStatus == 'cancelled') {
-      return 'Cancelled';
-    } else if (paymentStatus == 'failed') {
-      return 'Payment Failed';
-    } else if (paymentStatus == 'pending') {
-      return 'Pending';
-    } else {
-      return 'Processing';
-    }
-  }
-
   // Global key for the ticket widget
   final GlobalKey _ticketKey = GlobalKey();
 
   Future<void> _downloadTicket(BuildContext context) async {
-    // Store bookingId locally to prevent any reference issues
     final String localBookingId = widget.bookingId;
     
     try {
-      // Make sure we're still on this screen
       if (!mounted) return;
       
-      // Track payment link interaction
       if (!_hasTrackedPaymentLinkClick) {
         setState(() {
           _hasTrackedPaymentLinkClick = true;
         });
-        // You could log this to analytics in a real app
         debugPrint('Payment link clicked - tracking interaction');
       }
 
-      // Show a loading indicator first
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1209,22 +578,18 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         );
       }
       
-      // IMPORTANT DEBUGGING
       debugPrint('🎫 DOWNLOAD TICKET INITIATED - Booking ID: $localBookingId');
       final currentState = ref.read(bookingHistoryControllerProvider);
       debugPrint('🎫 CURRENT STATE - Has Booking: ${currentState.selectedBooking != null}');
       debugPrint('🎫 CURRENT STATE - Has Error: ${currentState.error ?? "None"}');
       
-      // CRITICAL FIX: First check if we already have the booking data
       final hasBookingData = ref.read(bookingHistoryControllerProvider).selectedBooking != null;
       
       if (!hasBookingData) {
         debugPrint('🎫 NO BOOKING DATA - LOADING DETAILS FIRST');
-        // Reload booking details to make sure we have fresh data
         await ref.read(bookingHistoryControllerProvider.notifier)
             .loadBookingDetails(localBookingId);
         
-        // Check if loading was successful
         final loadedState = ref.read(bookingHistoryControllerProvider);
         if (loadedState.selectedBooking == null) {
           debugPrint('❌ FATAL ERROR - COULD NOT LOAD BOOKING DATA');
@@ -1241,22 +606,16 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         }
       }
       
-      // Verify we're still mounted after the first async operation
       if (!mounted) return;
       
-      // Generate ticket data using the locally stored ID
-      debugPrint('🎫 GENERATING TICKET DATA');
       final ticketData = await ref.read(
           bookingHistoryControllerProvider.notifier)
           .generateTicket(localBookingId);
         
-      // Double-check we're still mounted after async operations
       if (!mounted) return;
       
-      // Verify the current context is still valid
       if (!context.mounted) return;
       
-      // After ticket generation, check the state again
       final afterGenState = ref.read(bookingHistoryControllerProvider);
       debugPrint('🎫 AFTER TICKET GEN - Has Booking: ${afterGenState.selectedBooking != null}');
       debugPrint('🎫 AFTER TICKET GEN - Has Error: ${afterGenState.error ?? "None"}');
@@ -1287,28 +646,18 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         return;
       }
 
-      // CRITICAL CHECK: Prevent ticket dialog if we're not mounted anymore or context is invalid
       if (!mounted || !context.mounted) return;
       
-      // CRITICAL FIX: Use Navigator.of(context, rootNavigator: true) to avoid navigation issues
-      
-      // Show the ticket directly in the current screen using a dialog
-      // Using rootNavigator ensures the dialog appears above all routes
       await showDialog(
         context: context,
-        useRootNavigator: true, // This prevents route conflicts
+        useRootNavigator: true,
         barrierDismissible: true,
-        barrierColor: Colors.black54, // Dark background for better visibility
-        // Use context-independent builder to avoid navigation issues
+        barrierColor: Colors.black54,
         builder: (BuildContext dialogContext) {
-          // Check if we're in dark mode
           final isDarkMode = Theme.of(dialogContext).brightness == Brightness.dark;
-          
-          return WillPopScope(
-            // Prevent accidental closes
-            onWillPop: () async {
-              return true; // Allow back button to close dialog
-            },
+
+          return PopScope(
+            canPop: true,
             child: Dialog(
               backgroundColor: Colors.transparent,
               insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -1318,7 +667,6 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                   maxWidth: 400,
                 ),
                 decoration: BoxDecoration(
-                  // FIXED: Always use light theme for ticket dialog
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -1326,7 +674,6 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Close button in top-right corner
                     Align(
                       alignment: Alignment.topRight,
                       child: IconButton(
@@ -1348,29 +695,24 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                       ),
                     ),
                     
-                    // Scrollable area for the ticket
                     Flexible(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
                         child: RepaintBoundary(
                           key: _ticketKey,
-                          child: _buildTicketWidget(dialogContext, event!, booking!, user!, ticketNumber!),
+                          child: _buildTicketWidget(dialogContext, event, booking, user, ticketNumber),
                         ),
                       ),
                     ),
                     
-                    // Download button - with additional safety checks
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
                       child: ElevatedButton(
                         onPressed: () {
-                          // Prevent multiple presses
                           if (dialogContext.mounted) {
-                            // Use try-catch to handle any errors during the process
                             try {
                               _captureAndShareTicket(dialogContext, event['title'] as String? ?? 'Event');
                             } catch (e) {
-                              // Show error if sharing fails
                               ScaffoldMessenger.of(dialogContext).showSnackBar(
                                 SnackBar(
                                   content: Text('Failed to share: $e'),
@@ -1381,11 +723,9 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          // FIXED: Theme-aware styling for dark mode compatibility
                           backgroundColor: Theme.of(dialogContext).brightness == Brightness.dark 
-                              ? Colors.purple.shade600 // Darker purple for dark theme
+                              ? Colors.purple.shade600
                               : Theme.of(dialogContext).primaryColor,
-                          // FIXED: Contrast text for better visibility in both themes
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -1395,7 +735,6 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                         child: const Text(
                           'Download & Share',
                           style: TextStyle(
-                            // Enforce white text for visibility against any background
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1506,7 +845,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
               ext: 'png',
               mimeType: MimeType.png,
             );
-            
+
             // If FileSaver worked, also offer to share
             final output = await getTemporaryDirectory();
             final file = File('${output.path}/$fileName');
@@ -1594,74 +933,47 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     IconData recurringIcon = Icons.repeat;
     
     try {
-      // Get the start date from any of the possible field names
-      DateTime? eventStartDate;
+      // First check for booked occurrence date
+      DateTime? eventDate;
       DateTime? eventEndDate;
       
-      if (event['start_time'] != null) {
-        eventStartDate = DateTime.parse(event['start_time']);
-      } else if (event['start_date'] != null) {
-        eventStartDate = DateTime.parse(event['start_date']);
-      } else if (event['start_datetime'] != null) {
-        eventStartDate = DateTime.parse(event['start_datetime']);
-      }
-      
-      if (event['end_time'] != null) {
-        eventEndDate = DateTime.parse(event['end_time']);
-      } else if (event['end_date'] != null) {
-        eventEndDate = DateTime.parse(event['end_date']);
-      } else if (event['end_datetime'] != null) {
-        eventEndDate = DateTime.parse(event['end_datetime']);
-      }
-      
-      // Check if this is a recurring event
-      if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty && eventStartDate != null) {
-        isRecurringEvent = true;
+      if (booking['booked_occurrence_date'] != null) {
+        eventDate = DateTime.parse(booking['booked_occurrence_date']);
         
-        // Create a temporary Event object to use with RecurringEventUtils
-        final tempEvent = Event(
-          id: event['id'] ?? '',
-          title: event['title'] ?? '',
-          description: event['description'] ?? '',
-          location: event['location'] ?? '',
-          startTime: eventStartDate,
-          endTime: eventEndDate ?? (eventStartDate.add(const Duration(hours: 1))),
-          recurringPattern: event['recurring_pattern'],
-          createdAt: event['created_at'] != null ? DateTime.parse(event['created_at']) : DateTime.now(),
-          updatedAt: event['updated_at'] != null ? DateTime.parse(event['updated_at']) : DateTime.now(),
-          creatorId: event['creator_id'] ?? '',
-          eventType: _parseEventType(event['event_type']),
-          status: EventStatus.upcoming,
-          tags: event['tags'] != null ? List<String>.from(event['tags']) : [],
-          visibility: EventVisibility.public,
-        );
-        
-        // Get next occurrence info using RecurringEventUtils
-        final nextOccurrenceInfo = RecurringEventUtils.getNextOccurrenceInfo(tempEvent);
-        
-        // Use the next occurrence date instead of the original date
-        if (nextOccurrenceInfo['hasPattern']) {
-          final nextStartDate = nextOccurrenceInfo['nextOccurrence'] as DateTime;
-          final isCompleted = nextOccurrenceInfo['isCompleted'] as bool;
-          
-          // Only update the date if the series isn't completed
-          if (!isCompleted) {
-            eventStartDate = nextStartDate;
-            
-            // Get recurring pattern details for display
-            recurringLabel = nextOccurrenceInfo['label'] as String;
-            recurringColor = nextOccurrenceInfo['color'] as Color;
-            recurringIcon = nextOccurrenceInfo['icon'] as IconData;
-          }
+        // For end time, add event duration to start time
+        if (event['duration_minutes'] != null) {
+          eventEndDate = eventDate.add(Duration(minutes: event['duration_minutes'] as int));
+        } else {
+          // Default to 1 hour if no duration specified
+          eventEndDate = eventDate.add(const Duration(hours: 1));
         }
-        
-        // Format the date and time using the calculated next occurrence
-        formattedEventDate = DateFormat('MMM dd, yyyy').format(eventStartDate);
-        formattedTime = DateFormat('h:mm a').format(eventStartDate);
-      } else if (eventStartDate != null) {
-        // Standard date formatting for non-recurring events
-        formattedEventDate = DateFormat('MMM dd, yyyy').format(eventStartDate);
-        formattedTime = DateFormat('h:mm a').format(eventStartDate);
+      } else {
+        // Fallback to event start time if no booked occurrence date
+        if (event['start_time'] != null) {
+          eventDate = DateTime.parse(event['start_time']);
+        } else if (event['start_date'] != null) {
+          eventDate = DateTime.parse(event['start_date']);
+        } else if (event['start_datetime'] != null) {
+          eventDate = DateTime.parse(event['start_datetime']);
+        }
+
+        // Get end time
+        if (event['end_time'] != null) {
+          eventEndDate = DateTime.parse(event['end_time']);
+        } else if (event['end_date'] != null) {
+          eventEndDate = DateTime.parse(event['end_date']);
+        } else if (event['end_datetime'] != null) {
+          eventEndDate = DateTime.parse(event['end_datetime']);
+        }
+      }
+      
+      // Format the date and time
+      if (eventDate != null) {
+        formattedEventDate = DateFormat('EEE, MMM dd, yyyy').format(eventDate);
+        formattedTime = DateFormat('hh:mm a').format(eventDate);
+        if (eventEndDate != null) {
+          formattedTime += ' - ${DateFormat('hh:mm a').format(eventEndDate)}';
+        }
       }
     } catch (e) {
       debugPrint('Error formatting event date: $e');
@@ -1682,7 +994,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
     final mediaUrlsRaw = event['media_urls'];
     final List<dynamic> mediaUrls = mediaUrlsRaw != null ? List.from(mediaUrlsRaw) : [];
     final String imageUrl = mediaUrls.isNotEmpty && mediaUrls[0] != null ? 
-        mediaUrls[0].toString() : 'https://via.placeholder.com/400x200?text=No+Image';
+        mediaUrls[0].toString() : 'https://via.placeholder.com/400x200';
     
     // Get seat/row information if available
     final String row = (booking['seat_row'] as String?) ?? 'A';
@@ -2106,129 +1418,61 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   }
 
   Widget _buildEventDetails(BuildContext context, Map<String, dynamic> event) {
-  final theme = Theme.of(context);
-  final isDarkMode = theme.brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
 
-  // Event date parsing - with null safety
-  DateTime? eventStartDate;
-  DateTime? eventEndDate;
-  String formattedEventDate;
-  bool isRecurringEvent = false;
-  Color dateColor = isDarkMode ? Colors.white : Colors.black87;
-  IconData dateIcon = Icons.access_time;
+    // Event date parsing - with null safety
+    DateTime? eventDate;
+    DateTime? eventEndDate;
+    String formattedEventDate = 'Date not specified';
 
-  try {
-    // Safely parse start date if available - checking for all possible field names
-    if (event['start_time'] != null) {
-      eventStartDate = DateTime.parse(event['start_time']);
-      debugPrint('Using start_time field: ${event['start_time']}');
-    } else if (event['start_date'] != null) {
-      eventStartDate = DateTime.parse(event['start_date']);
-      debugPrint('Using start_date field: ${event['start_date']}');
-    } else if (event['start_datetime'] != null) {
-      eventStartDate = DateTime.parse(event['start_datetime']);
-      debugPrint('Using start_datetime field: ${event['start_datetime']}');
-    }
-
-    // Safely parse end date if available - checking for all possible field names
-    if (event['end_time'] != null) {
-      eventEndDate = DateTime.parse(event['end_time']);
-    } else if (event['end_date'] != null) {
-      eventEndDate = DateTime.parse(event['end_date']);
-    } else if (event['end_datetime'] != null) {
-      eventEndDate = DateTime.parse(event['end_datetime']);
-    }
-
-    // Check if the event has a recurring pattern
-    if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty) {
-      isRecurringEvent = true;
+    try {
+      // First check for booked occurrence date from the booking
+      final state = ref.read(bookingHistoryControllerProvider);
+      final booking = state.selectedBooking;
       
-      // Create a temporary Event object to use with RecurringEventUtils
-      final tempEvent = Event(
-        id: event['id'] ?? '',
-        title: event['title'] ?? '',
-        description: event['description'] ?? '',
-        location: event['location'] ?? '',
-        startTime: eventStartDate ?? DateTime.now(),
-        endTime: eventEndDate ?? (eventStartDate?.add(const Duration(hours: 1)) ?? DateTime.now()),
-        recurringPattern: event['recurring_pattern'],
-        createdAt: event['created_at'] != null ? DateTime.parse(event['created_at']) : DateTime.now(),
-        updatedAt: event['updated_at'] != null ? DateTime.parse(event['updated_at']) : DateTime.now(),
-        creatorId: event['creator_id'] ?? '',
-        eventType: _parseEventType(event['event_type']),
-        status: EventStatus.upcoming,
-        tags: event['tags'] != null ? List<String>.from(event['tags']) : [],
-        visibility: EventVisibility.public,
-      );
-      
-      // Get next occurrence info using RecurringEventUtils
-      final nextOccurrenceInfo = RecurringEventUtils.getNextOccurrenceInfo(tempEvent);
-      
-      // Use the next occurrence date instead of the original date
-      if (nextOccurrenceInfo['hasPattern']) {
-        final nextStartDate = nextOccurrenceInfo['nextOccurrence'] as DateTime;
-        final nextEndDate = nextOccurrenceInfo['nextEndTime'] as DateTime;
-        final isCompleted = nextOccurrenceInfo['isCompleted'] as bool;
+      if (booking != null && booking['booked_occurrence_date'] != null) {
+        eventDate = DateTime.parse(booking['booked_occurrence_date']);
         
-        // Update icon and color based on pattern type
-        dateIcon = nextOccurrenceInfo['icon'] as IconData;
-        dateColor = isCompleted ? Colors.grey : (nextOccurrenceInfo['color'] as Color);
-        
-        // Format the recurring pattern information with next occurrence date
-        formattedEventDate = '${nextOccurrenceInfo['label']} Recurring Event\n';
-        formattedEventDate += 'Next: ${DateFormat('EEE, MMM dd, yyyy').format(nextStartDate)}\n';
-        
-        // Add time information
-        String timeStr = DateFormat('hh:mm a').format(nextStartDate);
-        if (nextEndDate != null) {
-          timeStr += ' to ${DateFormat('hh:mm a').format(nextEndDate)}';
-        }
-        formattedEventDate += 'Time: $timeStr';
-        
-        // Add pattern description
-        formattedEventDate += '\n\n' + _formatRecurringPattern(
-          event['recurring_pattern'], 
-          eventStartDate ?? DateTime.now(),
-          eventEndDate
-        );
-      } else {
-        // Fallback to basic formatting if pattern info couldn't be calculated
-        formattedEventDate = _formatRecurringPattern(
-          event['recurring_pattern'], 
-          eventStartDate ?? DateTime.now(),
-          eventEndDate
-        );
-        
-        // Add time information to the recurring pattern
-        if (eventStartDate != null) {
-          String timeStr = DateFormat('hh:mm a').format(eventStartDate);
-          if (eventEndDate != null) {
-            timeStr += ' to ${DateFormat('hh:mm a').format(eventEndDate)}';
-          }
-          formattedEventDate += '\nTime: $timeStr';
-        }
-      }
-    } else {
-      // Standard date formatting for non-recurring events
-      if (eventStartDate != null) {
-        if (eventEndDate != null) {
-          formattedEventDate =
-          '${DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(
-              eventStartDate)} to ${DateFormat('hh:mm a').format(
-              eventEndDate)}';
+        // For end time, add event duration to start time
+        if (event['duration_minutes'] != null) {
+          eventEndDate = eventDate.add(Duration(minutes: event['duration_minutes'] as int));
         } else {
-          formattedEventDate =
-              DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(eventStartDate);
+          // Default to 1 hour if no duration specified
+          eventEndDate = eventDate.add(const Duration(hours: 1));
         }
       } else {
-        formattedEventDate = 'Date not specified';
+        // Fallback to event start time if no booked occurrence date
+        if (event['start_time'] != null) {
+          eventDate = DateTime.parse(event['start_time']);
+        } else if (event['start_date'] != null) {
+          eventDate = DateTime.parse(event['start_date']);
+        } else if (event['start_datetime'] != null) {
+          eventDate = DateTime.parse(event['start_datetime']);
+        }
+
+        // Get end time
+        if (event['end_time'] != null) {
+          eventEndDate = DateTime.parse(event['end_time']);
+        } else if (event['end_date'] != null) {
+          eventEndDate = DateTime.parse(event['end_date']);
+        } else if (event['end_datetime'] != null) {
+          eventEndDate = DateTime.parse(event['end_datetime']);
+        }
       }
+
+      // Format the date and time
+      if (eventDate != null) {
+        if (eventEndDate != null) {
+          formattedEventDate = '${DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(eventDate)} to ${DateFormat('hh:mm a').format(eventEndDate)}';
+        } else {
+          formattedEventDate = DateFormat('EEE, MMM dd, yyyy - hh:mm a').format(eventDate);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error parsing event date: $e');
+      formattedEventDate = 'Date information unavailable';
     }
-  } catch (e) {
-    debugPrint('Error parsing event date: $e');
-    // Fallback if date parsing fails
-    formattedEventDate = 'Date information unavailable';
-  }  
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2246,8 +1490,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
           context,
           'Date & Time',
           formattedEventDate,
-          icon: isRecurringEvent ? Icons.repeat : Icons.access_time,
-          isRecurring: isRecurringEvent,
+          icon: Icons.access_time,
         ),
 
         // Organizer
@@ -2650,5 +1893,34 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         ],
       ),
     );
+  }
+
+  // Status helper methods
+  Color _getStatusColor(String paymentStatus, String bookingStatus) {
+    if (paymentStatus == 'paid' && bookingStatus == 'confirmed') {
+      return Colors.green;
+    } else if (paymentStatus == 'paid' && bookingStatus == 'cancelled') {
+      return Colors.red;
+    } else if (paymentStatus == 'failed') {
+      return Colors.red;
+    } else if (paymentStatus == 'pending') {
+      return Colors.orange;
+    } else {
+      return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String paymentStatus, String bookingStatus) {
+    if (paymentStatus == 'paid' && bookingStatus == 'confirmed') {
+      return 'Confirmed';
+    } else if (paymentStatus == 'paid' && bookingStatus == 'cancelled') {
+      return 'Cancelled';
+    } else if (paymentStatus == 'failed') {
+      return 'Payment Failed';
+    } else if (paymentStatus == 'pending') {
+      return 'Pending';
+    } else {
+      return 'Processing';
+    }
   }
 }

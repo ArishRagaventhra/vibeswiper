@@ -16,7 +16,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Local imports - Models
 import '../models/event_model.dart';
-import '../models/event_participant_model.dart';
 import '../models/event_action_model.dart';
 
 // Local imports - Controllers
@@ -36,12 +35,10 @@ import '../widgets/event_join_requirements_dialog.dart';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../widgets/event_details_instructions_overlay.dart';
-import '../../../shared/widgets/avatar.dart';
 import '../widgets/event_about_section.dart';
 import '../widgets/event_location_section.dart';
 import '../widgets/event_visibility_section.dart';
 import '../widgets/event_datetime_section.dart';
-import '../widgets/event_participants_section.dart';
 import '../widgets/event_policy_section.dart';
 import '../../../config/routes.dart';
 import '../utils/recurring_event_utils.dart';
@@ -653,18 +650,25 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                           bottom: padding.bottom + 16,
                         ),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surface.withOpacity(0.85),
+                          color: theme.colorScheme.surface.withOpacity(0.95),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
+                              color: theme.colorScheme.shadow.withOpacity(0.2),
+                              blurRadius: 20,
                               offset: const Offset(0, -5),
+                              spreadRadius: 5,
+                            ),
+                            BoxShadow(
+                              color: theme.colorScheme.primary.withOpacity(0.05),
+                              blurRadius: 15,
+                              offset: const Offset(0, -3),
+                              spreadRadius: 2,
                             ),
                           ],
                           border: Border(
                             top: BorderSide(
-                              color: theme.dividerColor.withOpacity(0.1),
-                              width: 0.5,
+                              color: theme.colorScheme.outline.withOpacity(0.1),
+                              width: 1,
                             ),
                           ),
                         ),
@@ -681,174 +685,149 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
 
                                   return Container(
                                     height: 56,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: _getButtonBoxShadowColor(event, isParticipant, isCreator, theme),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ElevatedButton(
-                                      onPressed: () {
-                                        HapticFeedback.mediumImpact();
-                                        if (isCreator) {
-                                          // For event creators, navigate to event dashboard
-                                          context.push('/events/${event.id}/dashboard');
-                                        } else if (isParticipant) {
-                                          // For paid events where the user is a participant
-                                          if (event.ticketPrice != null && event.ticketPrice! > 0) {
-                                            // Show a message that ticket is confirmed
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Your ticket is confirmed. Enjoy the event!'),
-                                                backgroundColor: Colors.green,
-                                              ),
-                                            );
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () {
+                                          HapticFeedback.mediumImpact();
+                                          if (isCreator) {
+                                            context.push('/events/${event.id}/dashboard');
                                           } else {
-                                            // Only allow leaving for free events
-                                            _handleLeaveEvent();
-                                          }
-                                        } else {
-                                          // Check if event is completed before allowing join
-                                          final bool isRecurringEvent = event.recurringPattern != null && event.recurringPattern!.isNotEmpty;
-                                          final bool eventCompleted = isRecurringEvent
-                                              ? RecurringEventUtils.isEventSeriesCompleted(event)
-                                              : DateTime.now().isAfter(event.endTime);
-                                              
-                                          if (eventCompleted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('This event has already ended and cannot be joined.'),
-                                                backgroundColor: Colors.orange,
-                                              ),
-                                            );
-                                          } else if (event.ticketPrice != null && event.ticketPrice! > 0) {
-                                            // For paid events, navigate to booking screen
-                                            context.push(
-                                              '/events/${event.id}/booking',
-                                              extra: {'event': event},
-                                            );
-                                          } else {
-                                            _handleJoinEvent(event);
-                                          }
-                                        }
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        // Use the primary gradient for paid events that are not completed,
-                                        // and when the user is not already a participant
-                                        backgroundColor: (!isParticipant && !isCreator && 
-                                            // Check if event is still active using proper recurring pattern logic
-                                            !(event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                            final bool isRecurringEvent = event.recurringPattern != null && event.recurringPattern!.isNotEmpty;
+                                            final bool eventCompleted = isRecurringEvent
                                                 ? RecurringEventUtils.isEventSeriesCompleted(event)
-                                                : DateTime.now().isAfter(event.endTime)) && 
-                                            (event.ticketPrice != null && event.ticketPrice! > 0)) 
-                                            ? Colors.transparent
-                                            : _getButtonColor(event, isParticipant, isCreator, theme),
-                                        foregroundColor: theme.colorScheme.onPrimary,
-                                        padding: EdgeInsets.zero, // Remove default padding for proper gradient background
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                      ),
-                                      child: Ink(
-                                        decoration: (!isParticipant && !isCreator && 
-                                            // Check if event is still active using proper recurring pattern logic
-                                            !(event.recurringPattern != null && event.recurringPattern!.isNotEmpty
-                                                ? RecurringEventUtils.isEventSeriesCompleted(event)
-                                                : DateTime.now().isAfter(event.endTime)) && 
-                                            (event.ticketPrice != null && event.ticketPrice! > 0))
-                                            ? BoxDecoration(
-                                                gradient: AppTheme.primaryGradient,
-                                                borderRadius: BorderRadius.circular(16),
-                                              )
-                                            : null,
-                                        child: Container(
-                                          height: 56, // Fixed height to prevent overflow
-                                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                                          alignment: Alignment.center,
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              // If it's a paid event and user hasn't joined yet and event hasn't ended
-                                              if (!isParticipant && !isCreator && 
-                                                  // Check if event is still active using proper recurring pattern logic
-                                                  !(event.recurringPattern != null && event.recurringPattern!.isNotEmpty
-                                                      ? RecurringEventUtils.isEventSeriesCompleted(event)
-                                                      : DateTime.now().isAfter(event.endTime)) && 
-                                                  (event.ticketPrice != null && event.ticketPrice! > 0)) ...[                                             
-                                                // Show booking ticket info with price - using a flat layout instead of nested columns
-                                                Expanded(
-                                                  child: Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                : DateTime.now().isAfter(event.endTime);
+                                                
+                                            if (eventCompleted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text('This event has already ended and cannot be joined.'),
+                                                  backgroundColor: Colors.orange,
+                                                ),
+                                              );
+                                            } else if (event.ticketPrice != null && event.ticketPrice! > 0) {
+                                              context.push(
+                                                '/events/${event.id}/booking',
+                                                extra: {'event': event},
+                                              );
+                                            } else {
+                                              if (isParticipant) {
+                                                _handleLeaveEvent();
+                                              } else {
+                                                _handleJoinEvent(event);
+                                              }
+                                            }
+                                          }
+                                        },
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            if (!isCreator && 
+                                                !(event.recurringPattern != null && event.recurringPattern!.isNotEmpty
+                                                    ? RecurringEventUtils.isEventSeriesCompleted(event)
+                                                    : DateTime.now().isAfter(event.endTime)) && 
+                                                (event.ticketPrice != null && event.ticketPrice! > 0)) ...[                                             
+                                              // Left side - Price information
+                                              Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Starts from',
+                                                    style: theme.textTheme.bodySmall?.copyWith(
+                                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Row(
                                                     children: [
-                                                      // Book tickets text (left-aligned)
-                                                      Text(
-                                                        'Book Tickets',
-                                                        style: theme.textTheme.titleMedium?.copyWith(
-                                                          color: Colors.white,
-                                                          fontWeight: FontWeight.bold,
-                                                          fontSize: 15,
-                                                          letterSpacing: 0.3,
-                                                        ),
-                                                      ),
-                                                      
-                                                      // Price information (right-aligned)
-                                                      Row(
-                                                        mainAxisSize: MainAxisSize.min,
-                                                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                                                        textBaseline: TextBaseline.alphabetic,
-                                                        children: [
-                                                          // Vibe price (if available) - larger and more prominent
-                                                          if (event.vibePrice != null && event.vibePrice! > 0) ...[                                                     
-                                                            Text(
-                                                              '₹${event.vibePrice!.toStringAsFixed(0)}',
-                                                              style: theme.textTheme.titleMedium?.copyWith(
-                                                                color: Colors.white,
-                                                                fontWeight: FontWeight.bold,
-                                                                fontSize: 16,
-                                                              ),
-                                                            ),
-                                                            const SizedBox(width: 8),
-                                                          ],
-                                                          // Regular price (struck out if vibe price is available)
-                                                          Text(
-                                                            '₹${event.ticketPrice!.toStringAsFixed(0)}',
-                                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                                              color: Colors.white.withOpacity(0.7),
-                                                              fontWeight: FontWeight.normal,
-                                                              fontSize: 13,
-                                                              decoration: (event.vibePrice != null && event.vibePrice! > 0) ?
-                                                                TextDecoration.lineThrough : null,
-                                                              decorationColor: Colors.white.withOpacity(0.7),
-                                                            ),
+                                                      if (event.vibePrice != null && event.vibePrice! > 0) ...[                                                     
+                                                        Text(
+                                                          '₹${event.vibePrice!.toStringAsFixed(0)}',
+                                                          style: theme.textTheme.titleLarge?.copyWith(
+                                                            color: theme.colorScheme.onSurface,
+                                                            fontWeight: FontWeight.bold,
+                                                            fontSize: 24,
                                                           ),
-                                                        ],
-                                                      ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Text(
+                                                          '₹${event.ticketPrice!.toStringAsFixed(0)}',
+                                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                                            decoration: TextDecoration.lineThrough,
+                                                            decorationColor: theme.colorScheme.onSurface.withOpacity(0.6),
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                      ] else ...[
+                                                        Text(
+                                                          '₹${event.ticketPrice!.toStringAsFixed(0)}',
+                                                          style: theme.textTheme.titleLarge?.copyWith(
+                                                            color: theme.colorScheme.onSurface,
+                                                            fontWeight: FontWeight.bold,
+                                                            fontSize: 24,
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ],
                                                   ),
+                                                ],
+                                              ),
+                                              
+                                              // Right side - Book tickets button
+                                              Container(
+                                                height: 40,
+                                                padding: const EdgeInsets.symmetric(horizontal: 24),
+                                                decoration: BoxDecoration(
+                                                  gradient: AppTheme.primaryGradient,
+                                                  borderRadius: BorderRadius.circular(20),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: theme.colorScheme.primary.withOpacity(0.3),
+                                                      blurRadius: 8,
+                                                      offset: const Offset(0, 2),
+                                                      spreadRadius: 0,
+                                                    ),
+                                                  ],
                                                 ),
-                                              ] else ...[
-                                                // Standard button for free events or other states
-                                                Icon(
-                                                  _getButtonIcon(event, isParticipant, isCreator),
-                                                  size: 20,
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  _getButtonText(event, isParticipant, isCreator),
-                                                  style: theme.textTheme.titleMedium?.copyWith(
-                                                    color: theme.colorScheme.onPrimary,
-                                                    fontWeight: FontWeight.bold,
-                                                    letterSpacing: 0.3,
+                                                child: Center(
+                                                  child: Text(
+                                                    'Book tickets',
+                                                    style: theme.textTheme.titleMedium?.copyWith(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 15,
+                                                    ),
                                                   ),
                                                 ),
-                                              ],
+                                              ),
+                                            ] else ...[
+                                              // Standard button content for free events or organizers
+                                              Expanded(
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(
+                                                      _getButtonIcon(event, isParticipant, isCreator),
+                                                      size: 20,
+                                                      color: theme.colorScheme.onSurface,
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      _getButtonText(event, isParticipant, isCreator),
+                                                      style: theme.textTheme.titleMedium?.copyWith(
+                                                        color: theme.colorScheme.onSurface,
+                                                        fontWeight: FontWeight.bold,
+                                                        letterSpacing: 0.3,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
                                             ],
-                                          ),
+                                          ],
                                         ),
                                       ),
                                     ),
@@ -859,62 +838,6 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                                 ),
                                 error: (_, __) => const SizedBox(),
                               ) ?? const SizedBox(),
-                            ),
-                            
-                            const SizedBox(width: 12),
-                            
-                            // Chat Button (at fixed width)
-                            Container(
-                              height: 56,
-                              width: 56, 
-                              decoration: BoxDecoration(
-                                color: userParticipationAsync?.when(
-                                  data: (participation) => participation != null 
-                                      ? theme.colorScheme.primaryContainer
-                                      : theme.colorScheme.primaryContainer.withOpacity(0.5), 
-                                  loading: () => theme.colorScheme.primaryContainer.withOpacity(0.5),
-                                  error: (_, __) => theme.colorScheme.primaryContainer.withOpacity(0.5),
-                                ) ?? theme.colorScheme.primaryContainer.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: userParticipationAsync?.when(
-                                  data: (participation) => participation != null ? [
-                                    BoxShadow(
-                                      color: theme.colorScheme.primary.withOpacity(0.2),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ] : null,
-                                  loading: () => null,
-                                  error: (_, __) => null,
-                                ) ?? null,
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: userParticipationAsync?.when(
-                                    data: (participation) => participation != null ? () {
-                                      HapticFeedback.mediumImpact();
-                                      context.push('/events/${widget.eventId}/chat');
-                                    } : null,
-                                    loading: () => null,
-                                    error: (_, __) => null,
-                                  ) ?? null,
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.chat_bubble_outline,
-                                      color: userParticipationAsync?.when(
-                                        data: (participation) => participation != null 
-                                            ? theme.colorScheme.onPrimaryContainer
-                                            : theme.colorScheme.onPrimaryContainer.withOpacity(0.5), 
-                                        loading: () => theme.colorScheme.onPrimaryContainer.withOpacity(0.5),
-                                        error: (_, __) => theme.colorScheme.onPrimaryContainer.withOpacity(0.5),
-                                      ) ?? theme.colorScheme.onPrimaryContainer.withOpacity(0.5),
-                                      size: 24,
-                                    ),
-                                  ),
-                                ),
-                              ),
                             ),
                           ],
                         ),
@@ -1001,58 +924,12 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Directly include the EventAboutSection which already has its own header
                             EventAboutSection(description: event.description!),
                           ],
                         ),
                       ),
                       const SizedBox(height: 24),
                     ],
-                    
-                    // Participants section
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 24),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: theme.colorScheme.outline.withOpacity(0.1),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(24),
-                        child: FutureBuilder<List<EventParticipant>>(
-                          future: ref.read(eventParticipantControllerProvider.notifier).loadParticipants(event.id),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(16.0),
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            }
-                            
-                            final participants = snapshot.data ?? [];
-                            
-                            return EventParticipantsSection(
-                              participants: participants,
-                              onSeeAll: () => context.push('/events/${event.id}/participants'),
-                              // Show more participants on larger screens
-                              maxDisplayed: 5,
-                            );
-                          },
-                        ),
-                      ),
-                    ),
                     
                     // Policies section
                     Container(
@@ -1281,49 +1158,6 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
             ),
           ),
         ),
-        
-        // Participants Section Card
-        Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.1),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(24),
-            child: FutureBuilder<List<EventParticipant>>(
-              future: ref.read(eventParticipantControllerProvider.notifier).loadParticipants(event.id),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-                
-                final participants = snapshot.data ?? [];
-                
-                return EventParticipantsSection(
-                  participants: participants,
-                  onSeeAll: () => context.push('/events/${event.id}/participants'),
-                );
-              },
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -1368,80 +1202,6 @@ class _EventDetailsScreenState extends ConsumerState<EventDetailsScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildParticipantsSection(String eventId) {
-    final currentUser = ref.watch(currentUserProvider);
-    final event = ref.watch(eventDetailsProvider(eventId)).value;
-    final isCreator = currentUser != null && event?.creatorId == currentUser.id;
-    final theme = Theme.of(context);
-
-    return Consumer(
-      builder: (context, ref, child) {
-        final participantsAsync = ref.watch(eventParticipantControllerProvider);
-        
-        return participantsAsync.when(
-          data: (participants) {
-            if (participants.isEmpty) {
-              return Text('No participants yet', 
-                  style: theme.textTheme.bodyMedium);
-            }
-            
-            // Use a simple ListView with no vertical expansion
-            return ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: participants.length.clamp(0, 10),
-              itemBuilder: (context, index) {
-                final participant = participants[index];
-                
-                // For the last visible item, show "more" indicator if needed
-                if (index == 9 && participants.length > 10) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: theme.colorScheme.primary.withOpacity(0.2),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '+${participants.length - 9}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }
-                
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Avatar(
-                    url: participant.avatarUrl,
-                    size: 48,
-                    name: participant.fullName ?? participant.username,
-                    userId: participant.userId,
-                  ),
-                );
-              },
-            );
-          },
-          loading: () => const Center(child: SizedBox(
-            width: 20, height: 20, 
-            child: CircularProgressIndicator(strokeWidth: 2)
-          )),
-          error: (_, __) => Text(
-            'Error loading participants', 
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error)
-          ),
-        );
-      },
     );
   }
 

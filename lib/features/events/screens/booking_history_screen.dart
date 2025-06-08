@@ -127,14 +127,14 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'No bookings found',
+              'No confirmed bookings',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              'Book tickets for an event to see your bookings here',
+              'Book tickets for an event to see your confirmed bookings here',
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
@@ -149,6 +149,17 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
     final isDarkMode = theme.brightness == Brightness.dark;
     final isDesktop = MediaQuery.of(context).size.width > 600;
     
+    // Filter to show only confirmed bookings
+    final confirmedBookings = bookings.where((booking) => 
+      booking['payment_status'] == 'paid' && 
+      booking['booking_status'] == 'confirmed'
+    ).toList();
+    
+    // Show empty state if no confirmed bookings
+    if (confirmedBookings.isEmpty) {
+      return _buildEmptyState(context);
+    }
+    
     return LayoutBuilder(builder: (context, constraints) {
       final crossAxisCount = _calculateColumnCount(constraints.maxWidth);
       
@@ -161,18 +172,18 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
-          itemCount: bookings.length,
+          itemCount: confirmedBookings.length,
           padding: const EdgeInsets.all(16),
           physics: const BouncingScrollPhysics(),
-          itemBuilder: (context, index) => _buildBookingItem(context, bookings[index], isDarkMode),
+          itemBuilder: (context, index) => _buildBookingItem(context, confirmedBookings[index], isDarkMode),
         );
       } else {
         // Mobile layout with list
         return ListView.builder(
-          itemCount: bookings.length,
+          itemCount: confirmedBookings.length,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           physics: const BouncingScrollPhysics(),
-          itemBuilder: (context, index) => _buildBookingItem(context, bookings[index], isDarkMode),
+          itemBuilder: (context, index) => _buildBookingItem(context, confirmedBookings[index], isDarkMode),
         );
       }
     });
@@ -195,8 +206,19 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
     bool hasRecurringPattern = false;
     Map<String, dynamic> patternInfo = {};
     
-    // Check if event has a recurring pattern
-    if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty) {
+    // First check for booked occurrence date
+    if (booking['booked_occurrence_date'] != null) {
+      final bookedDate = DateTime.parse(booking['booked_occurrence_date']);
+      eventDateStr = DateFormat('E, MMM d, yyyy').format(bookedDate);
+      
+      // Still get pattern info for the icon if it's a recurring event
+      if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty) {
+        hasRecurringPattern = true;
+        patternInfo = _getRecurringPatternInfo(event['recurring_pattern']);
+      }
+    }
+    // Then check for recurring pattern if no booked date
+    else if (event['recurring_pattern'] != null && event['recurring_pattern'].toString().isNotEmpty) {
       try {
         final patternData = json.decode(event['recurring_pattern']);
         final type = patternData['type'] as String? ?? 'none';
@@ -208,55 +230,6 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
           // Format date string differently for recurring events - show only date without time
           if (event['start_date'] != null) {
             var eventDate = DateTime.parse(event['start_date']);
-            
-            // For weekly patterns, adjust first occurrence date to match the selected weekday
-            if (type == 'weekly' && patternData['weekdays'] != null) {
-              final List<dynamic> weekdays = patternData['weekdays'];
-              if (weekdays.isNotEmpty) {
-                // Convert weekday names to day numbers (1-7 where 1 is Monday)
-                final Map<String, int> weekdayMap = {
-                  'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7
-                };
-                
-                // Get day numbers from weekday strings
-                final List<int> selectedDays = weekdays
-                    .map((day) => weekdayMap[day] ?? 0)
-                    .where((day) => day > 0)
-                    .toList();
-                
-                if (selectedDays.isNotEmpty) {
-                  // Get current day of week (1-7)
-                  final int startDayOfWeek = eventDate.weekday;
-                  
-                  // Find the next selected day
-                  int daysToAdd = 0;
-                  bool foundDay = false;
-                  
-                  // Check if current day is selected
-                  if (selectedDays.contains(startDayOfWeek)) {
-                    foundDay = true;
-                  } else {
-                    // Find the next closest selected day
-                    for (int i = 1; i <= 7; i++) {
-                      final int checkDay = (startDayOfWeek + i) > 7 ? 
-                          (startDayOfWeek + i) - 7 : (startDayOfWeek + i);
-                      
-                      if (selectedDays.contains(checkDay)) {
-                        daysToAdd = i;
-                        foundDay = true;
-                        break;
-                      }
-                    }
-                  }
-                  
-                  // Calculate first occurrence date
-                  if (foundDay) {
-                    eventDate = eventDate.add(Duration(days: daysToAdd));
-                  }
-                }
-              }
-            }
-            
             eventDateStr = '${patternInfo['label']} • ${DateFormat('E, MMM d, yyyy').format(eventDate)}';
           } else {
             eventDateStr = patternInfo['label'];
@@ -490,31 +463,13 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
   }
 
   Color _getStatusColor(String paymentStatus, String bookingStatus) {
-    if (paymentStatus == 'paid' && bookingStatus == 'confirmed') {
-      return Colors.green;
-    } else if (paymentStatus == 'paid' && bookingStatus == 'cancelled') {
-      return Colors.red;
-    } else if (paymentStatus == 'failed') {
-      return Colors.red;
-    } else if (paymentStatus == 'pending') {
-      return Colors.orange;
-    } else {
-      return Colors.grey;
-    }
+    // Since we're only showing confirmed bookings, we can simplify this
+    return Colors.green;  // All shown bookings will be confirmed
   }
 
   String _getStatusText(String paymentStatus, String bookingStatus) {
-    if (paymentStatus == 'paid' && bookingStatus == 'confirmed') {
-      return 'Confirmed';
-    } else if (paymentStatus == 'paid' && bookingStatus == 'cancelled') {
-      return 'Cancelled';
-    } else if (paymentStatus == 'failed') {
-      return 'Payment Failed';
-    } else if (paymentStatus == 'pending') {
-      return 'Pending';
-    } else {
-      return 'Processing';
-    }
+    // Since we're only showing confirmed bookings, we can simplify this
+    return 'Confirmed';  // All shown bookings will be confirmed
   }
   
   // Helper method to get recurring pattern display info

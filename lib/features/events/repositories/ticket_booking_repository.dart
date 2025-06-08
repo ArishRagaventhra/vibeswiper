@@ -20,6 +20,7 @@ class TicketBookingRepository {
     required double unitPrice,
     required double totalAmount,
     required bool isVibePrice,
+    DateTime? bookedOccurrenceDate,
   }) async {
     // Generate a unique booking reference (e.g. 'VB-12345678')
     final timestamp = DateTime.now().millisecondsSinceEpoch.toString().substring(5);
@@ -35,6 +36,7 @@ class TicketBookingRepository {
       'is_vibe_price': isVibePrice,
       'booking_status': BookingStatus.pending.toString().split('.').last,
       'payment_status': PaymentStatus.unpaid.toString().split('.').last,
+      'booked_occurrence_date': bookedOccurrenceDate?.toIso8601String(),
     }).select().single();
 
     return TicketBooking.fromMap(response);

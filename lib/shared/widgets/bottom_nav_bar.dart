@@ -9,6 +9,7 @@ import 'package:scompass_07/features/forum/routes/forum_routes.dart';
 import 'package:scompass_07/shared/widgets/compass_rose_shape.dart';
 import 'package:scompass_07/shared/icons/nav_icons.dart';
 import 'package:scompass_07/config/providers/theme_provider.dart';
+import 'package:scompass_07/shared/widgets/user_avatar.dart';
 
 import 'create_options_sheet.dart';
 
@@ -93,40 +94,29 @@ class _SCompassBottomNavBarState extends ConsumerState<SCompassBottomNavBar>
   Widget _buildNavItem(IconData icon, IconData selectedIcon, int index, bool isSelected) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final bool isProfileTab = index == 4;
     
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => _handleNavigation(index),
         child: Container(
-          height: 80,
+          height: 64,
           alignment: Alignment.center,
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: isSelected
-                ? ShapeDecoration(
-                    shape: const CompassRoseShape(),
-                    color: isDark ? Colors.white : Colors.black,
-                    shadows: [
-                      BoxShadow(
-                        color: (isDark ? Colors.white : Colors.black).withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: isProfileTab
+                ? UserAvatar(
+                    size: 28,
+                    showBorder: false,
                   )
-                : null,
-            child: ScaleTransition(
-              scale: _scaleAnimation,
-              child: Icon(
-                isSelected ? selectedIcon : icon,
-                color: isSelected 
-                  ? (isDark ? Colors.black : Colors.white)
-                  : theme.colorScheme.onSurface.withOpacity(0.7),
-                size: 24,
-              ),
-            ),
+                : Icon(
+                    isSelected ? selectedIcon : icon,
+                    color: isSelected 
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurface.withOpacity(0.7),
+                    size: 24,
+                  ),
           ),
         ),
       ),
@@ -140,44 +130,12 @@ class _SCompassBottomNavBarState extends ConsumerState<SCompassBottomNavBar>
         behavior: HitTestBehavior.opaque,
         onTap: _openCreateOptions,
         child: Container(
-          height: 80,
+          height: 64,
           alignment: Alignment.center,
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  theme.colorScheme.primary,
-                  theme.colorScheme.primary.withOpacity(0.8),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: theme.colorScheme.primary.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Icon(
-                  Icons.add_rounded,
-                  size: 28,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ),
+          child: Icon(
+            Icons.add_circle_rounded,
+            size: 32, // Slightly larger than regular icons
+            color: theme.colorScheme.primary,
           ),
         ),
       ),
@@ -188,6 +146,7 @@ class _SCompassBottomNavBarState extends ConsumerState<SCompassBottomNavBar>
   Widget _buildSidebarNavItem(IconData icon, IconData selectedIcon, int index, bool isSelected, String label) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isProfileTab = index == 4;
     
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
@@ -210,7 +169,7 @@ class _SCompassBottomNavBarState extends ConsumerState<SCompassBottomNavBar>
                 Container(
                   width: 36,
                   height: 36,
-                  decoration: isSelected
+                  decoration: isSelected && !isProfileTab
                     ? BoxDecoration(
                         color: theme.colorScheme.primary,
                         borderRadius: BorderRadius.circular(10),
@@ -223,13 +182,18 @@ class _SCompassBottomNavBarState extends ConsumerState<SCompassBottomNavBar>
                         ],
                       )
                     : null,
-                  child: Icon(
-                    isSelected ? selectedIcon : icon,
-                    color: isSelected 
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.onSurface.withOpacity(0.7),
-                    size: 20,
-                  ),
+                  child: isProfileTab
+                    ? UserAvatar(
+                        size: 36,
+                        showBorder: !isSelected,
+                      )
+                    : Icon(
+                        isSelected ? selectedIcon : icon,
+                        color: isSelected 
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.onSurface.withOpacity(0.7),
+                        size: 20,
+                      ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -482,7 +446,7 @@ class _SCompassBottomNavBarState extends ConsumerState<SCompassBottomNavBar>
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor.withOpacity(0.8),
+        color: theme.scaffoldBackgroundColor.withOpacity(0.95),
         border: Border(
           top: BorderSide(
             color: theme.dividerColor.withOpacity(0.1),
@@ -496,7 +460,7 @@ class _SCompassBottomNavBarState extends ConsumerState<SCompassBottomNavBar>
           child: Padding(
             padding: EdgeInsets.only(bottom: viewPadding.bottom),
             child: SizedBox(
-              height: 80,
+              height: 64,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [

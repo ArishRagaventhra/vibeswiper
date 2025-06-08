@@ -3,6 +3,7 @@ import '../models/event_model.dart';
 import 'swipeable_event_card.dart';
 // import 'event_card_ad.dart'; // Ad functionality temporarily disabled
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../utils/recurring_event_utils.dart';
 
 class EventCardStack extends StatefulWidget {
   final List<Event> events;
@@ -33,7 +34,7 @@ class _EventCardStackState extends State<EventCardStack> {
   @override
   void initState() {
     super.initState();
-    _events = List.from(widget.events);
+    _events = _sortEventsByNextOccurrence(List.from(widget.events));
   }
 
   @override
@@ -41,13 +42,35 @@ class _EventCardStackState extends State<EventCardStack> {
     super.didUpdateWidget(oldWidget);
     if (widget.events != oldWidget.events) {
       setState(() {
-        _events = List.from(widget.events);
+        _events = _sortEventsByNextOccurrence(List.from(widget.events));
         _swipeHistory.clear();
         _canUndo = false;
         // _showAdCard = false; // Ad functionality temporarily disabled
         _cardsSwipedCount = 0;
       });
     }
+  }
+
+  // New method to sort events by next occurrence
+  List<Event> _sortEventsByNextOccurrence(List<Event> events) {
+    return events.where((event) {
+      if (event.recurringPattern != null && event.recurringPattern!.isNotEmpty) {
+        // For recurring events, check if the series is completed
+        return !RecurringEventUtils.isEventSeriesCompleted(event);
+      } else {
+        // For non-recurring events, check if they haven't ended
+        return !DateTime.now().isAfter(event.endTime);
+      }
+    }).toList()
+      ..sort((a, b) {
+        final aDate = a.recurringPattern != null && a.recurringPattern!.isNotEmpty
+            ? RecurringEventUtils.getNextOccurrenceInfo(a)['nextOccurrence'] as DateTime
+            : a.startTime;
+        final bDate = b.recurringPattern != null && b.recurringPattern!.isNotEmpty
+            ? RecurringEventUtils.getNextOccurrenceInfo(b)['nextOccurrence'] as DateTime
+            : b.startTime;
+        return aDate.compareTo(bDate);
+      });
   }
 
   void _onSwipe(bool isRight, Event event) {
@@ -144,7 +167,10 @@ class _EventCardStackState extends State<EventCardStack> {
                       right: 0,
                       bottom: 0,
                       child: Container(
-                        margin: const EdgeInsets.only(bottom: 4), // Small bottom margin for cards
+                        margin: const EdgeInsets.only(bottom: 4),
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height * 0.65,
+                        ),
                         child: Transform.scale(
                           scale: scale,
                           child: SwipeableEventCard(

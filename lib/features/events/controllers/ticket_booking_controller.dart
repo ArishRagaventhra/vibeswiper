@@ -18,6 +18,7 @@ class BookingState {
   final String? error;
   final bool isLoading;
   final TicketBooking? confirmedBooking;
+  final DateTime? selectedOccurrenceDate;
 
   BookingState({
     this.event,
@@ -26,6 +27,7 @@ class BookingState {
     this.error,
     this.isLoading = false,
     this.confirmedBooking,
+    this.selectedOccurrenceDate,
   });
 
   BookingState copyWith({
@@ -35,6 +37,7 @@ class BookingState {
     String? error,
     bool? isLoading,
     TicketBooking? confirmedBooking,
+    DateTime? selectedOccurrenceDate,
   }) {
     return BookingState(
       event: event ?? this.event,
@@ -43,6 +46,7 @@ class BookingState {
       error: error,
       isLoading: isLoading ?? this.isLoading,
       confirmedBooking: confirmedBooking ?? this.confirmedBooking,
+      selectedOccurrenceDate: selectedOccurrenceDate ?? this.selectedOccurrenceDate,
     );
   }
 
@@ -93,6 +97,7 @@ class TicketBookingController extends StateNotifier<BookingState> {
       error: null,
       isLoading: false,
       confirmedBooking: null,
+      selectedOccurrenceDate: null,
     );
   }
 
@@ -105,6 +110,11 @@ class TicketBookingController extends StateNotifier<BookingState> {
   // Toggle between Vibe Price and Regular Price
   void togglePriceType() {
     state = state.copyWith(isVibePrice: !state.isVibePrice);
+  }
+
+  // Set selected occurrence date for recurring events
+  void setSelectedOccurrenceDate(DateTime date) {
+    state = state.copyWith(selectedOccurrenceDate: date);
   }
 
   // Create a booking
@@ -141,6 +151,17 @@ class TicketBookingController extends StateNotifier<BookingState> {
         return;
       }
 
+      // For recurring events, ensure we have a selected occurrence date
+      if (state.event!.recurringPattern != null && 
+          state.event!.recurringPattern!.isNotEmpty && 
+          state.selectedOccurrenceDate == null) {
+        state = state.copyWith(
+          error: 'Please select a date for this recurring event',
+          isLoading: false,
+        );
+        return;
+      }
+
       final booking = await _repository.createBooking(
         userId: currentUser.id,
         eventId: state.event!.id,
@@ -148,6 +169,7 @@ class TicketBookingController extends StateNotifier<BookingState> {
         unitPrice: unitPrice,
         totalAmount: state.totalAmount,
         isVibePrice: state.isVibePrice,
+        bookedOccurrenceDate: state.selectedOccurrenceDate,
       );
 
       // Record the interaction

@@ -240,37 +240,31 @@ class _EventBookingScreenState extends ConsumerState<EventBookingScreen> {
   // Layout for mobile screens
   Widget _buildMobileLayout(BuildContext context, ThemeData theme, Event event, 
       dynamic bookingState, NumberFormat currencyFormat) {
-    return Column(
+    final screenSize = MediaQuery.of(context).size;
+    final horizontalPadding = screenSize.width * 0.04;
+
+    return Stack(  // Changed from Column to Stack to properly handle Positioned widget
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+        SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: 100), // Add padding for payment button
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Event title and image in a row layout
+                // Event title and image in a column layout for mobile
                 Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 16),
-                  child: Row(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Image on the left side
+                      // Image at the top
                       if (event.mediaUrls != null && event.mediaUrls!.isNotEmpty)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
+                        Container(
+                          height: screenSize.width * 0.6, // 60% of screen width
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
                             child: Image.network(
                               event.mediaUrls!.first,
                               fit: BoxFit.cover,
@@ -281,6 +275,7 @@ class _EventBookingScreenState extends ConsumerState<EventBookingScreen> {
                                     child: Icon(
                                       Icons.image_not_supported_outlined,
                                       color: theme.colorScheme.onSurfaceVariant,
+                                      size: 32,
                                     ),
                                   ),
                                 );
@@ -289,81 +284,298 @@ class _EventBookingScreenState extends ConsumerState<EventBookingScreen> {
                           ),
                         ),
                         
-                      const SizedBox(width: 12),
+                      // Title and basic info below image
+                      Text(
+                        event.title,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                            
+                      // Daily Event badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.event_repeat,
+                              size: 16,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Daily Event',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       
-                      // Title and basic info on the right
-                      Expanded(
-                        flex: 2,
+                      const SizedBox(height: 16),
+                            
+                      // Use the same date/time section as desktop layout
+                      _buildDateTimeSection(theme, event),
+
+                      if (event.location != null) ...[  
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: 16,
+                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                event.location!,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Tickets Section with Date Selection
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Select Date',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Date selection chips with better scrolling
+                      SizedBox(
+                        height: 44,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: 7,
+                          itemBuilder: (context, index) {
+                            final date = DateTime.now().add(Duration(days: index));
+                            final isSelected = bookingState.selectedOccurrenceDate != null &&
+                                DateUtils.isSameDay(bookingState.selectedOccurrenceDate, date);
+                            
+                            return Container(
+                              margin: EdgeInsets.only(
+                                right: 8,
+                                left: index == 0 ? 0 : 0,
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    ref.read(ticketBookingControllerProvider.notifier)
+                                        .setSelectedOccurrenceDate(date);
+                                  },
+                                  borderRadius: BorderRadius.circular(22),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected 
+                                          ? theme.colorScheme.primary
+                                          : Colors.transparent,
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? theme.colorScheme.primary
+                                            : theme.colorScheme.outline.withOpacity(0.3),
+                                      ),
+                                      borderRadius: BorderRadius.circular(22),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          DateFormat('MMM d').format(date),
+                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                            color: isSelected
+                                                ? theme.colorScheme.onPrimary
+                                                : theme.colorScheme.onSurface,
+                                            fontWeight: isSelected
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Price and quantity section
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tickets',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Price display with better spacing
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: theme.colorScheme.outline.withOpacity(0.1),
+                          ),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              event.title,
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Regular Price',
+                                  style: theme.textTheme.bodyLarge,
+                                ),
+                                Text(
+                                  currencyFormat.format(1500),
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    decoration: TextDecoration.lineThrough,
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Icon(
-                                  Icons.calendar_today_outlined,
-                                  size: 14,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                Text(
+                                  'Vibe Price',
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    DateFormat('E, MMM d, yyyy').format(event.startTime),
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
+                                Text(
+                                  currencyFormat.format(1300),
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Quantity selector
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: theme.colorScheme.outline.withOpacity(0.1),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Number of tickets',
+                              style: theme.textTheme.bodyLarge,
+                            ),
                             Row(
                               children: [
-                                Icon(
-                                  Icons.access_time_rounded,
-                                  size: 14,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                IconButton(
+                                  onPressed: () {
+                                    if (bookingState.quantity > 1) {
+                                      ref.read(ticketBookingControllerProvider.notifier)
+                                          .updateQuantity(bookingState.quantity - 1);
+                                    }
+                                  },
+                                  icon: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.surfaceVariant,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.remove,
+                                      size: 20,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${DateFormat('h:mm a').format(event.startTime)} - '
-                                  '${DateFormat('h:mm a').format(event.endTime)}',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                SizedBox(
+                                  width: 40,
+                                  child: Text(
+                                    '${bookingState.quantity}',
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () {
+                                    ref.read(ticketBookingControllerProvider.notifier)
+                                        .updateQuantity(bookingState.quantity + 1);
+                                  },
+                                  icon: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.add,
+                                      size: 20,
+                                      color: theme.colorScheme.onPrimary,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                            if (event.location != null) ...[  
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.location_on_outlined,
-                                    size: 14,
-                                    color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      event.location!,
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
                           ],
                         ),
                       ),
@@ -371,42 +583,151 @@ class _EventBookingScreenState extends ConsumerState<EventBookingScreen> {
                   ),
                 ),
 
-                // Event description if available
-                if (event.description != null && event.description!.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      event.description!,
-                      style: theme.textTheme.bodyMedium,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                const SizedBox(height: 24),
+
+                // Summary section
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Summary',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: theme.colorScheme.outline.withOpacity(0.1),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Subtotal (1 ticket)',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                                Text(
+                                  currencyFormat.format(1500),
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Vibe Discount',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.green,
+                                  ),
+                                ),
+                                Text(
+                                  '- ${currencyFormat.format(200)}',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.green,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Divider(),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Total',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  currencyFormat.format(1300),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                
-                // Ticket selection card
-                _buildTicketSelectionCard(theme, event, bookingState, currencyFormat),
-                
-                // Booking Summary Card
-                BookingSummaryCard(
-                  quantity: bookingState.quantity,
-                  regularTotal: bookingState.regularTotal,
-                  vibeDiscount: bookingState.discount,
-                  totalAmount: bookingState.totalAmount,
                 ),
-                
-                const SizedBox(height: 16),
+
+                const SizedBox(height: 100), // Space for bottom button
               ],
             ),
           ),
         ),
         
-        // Payment Button
-        _buildPaymentButton(theme, bookingState, currencyFormat),
+        // Payment Button - Now correctly positioned in Stack
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Container(
+            padding: EdgeInsets.all(16).copyWith(
+              bottom: MediaQuery.of(context).padding.bottom + 16,
+            ),
+            decoration: BoxDecoration(
+              color: theme.scaffoldBackgroundColor,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _handlePayNow,
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: EdgeInsets.zero,
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                ),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: AppTheme.primaryGradient,
+                  ),
+                  child: Container(
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Pay ${currencyFormat.format(bookingState.totalAmount)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -592,6 +913,73 @@ class _EventBookingScreenState extends ConsumerState<EventBookingScreen> {
 
   // Ticket selection card - extracted to avoid duplication
   Widget _buildTicketSelectionCard(ThemeData theme, Event event, dynamic bookingState, NumberFormat currencyFormat) {
+    // Check if this is a recurring event
+    bool isRecurringEvent = event.recurringPattern != null && event.recurringPattern!.isNotEmpty;
+    List<DateTime> availableDates = [];
+    
+    if (isRecurringEvent) {
+      try {
+        final patternData = json.decode(event.recurringPattern!);
+        final type = patternData['type'] as String? ?? 'none';
+        
+        if (type != 'none') {
+          // Start from today or event start time, whichever is later
+          DateTime currentDate = DateTime.now();
+          if (event.startTime.isAfter(currentDate)) {
+            currentDate = event.startTime;
+          }
+          // Remove time component to compare dates only
+          currentDate = DateTime(currentDate.year, currentDate.month, currentDate.day);
+          
+          final DateTime endDate = patternData['endDate'] != null 
+              ? DateTime.parse(patternData['endDate'])
+              : currentDate.add(const Duration(days: 90)); // 3 months max if no end date
+          
+          while (availableDates.length < 30 && currentDate.isBefore(endDate)) {
+            switch (type) {
+              case 'daily':
+                availableDates.add(currentDate);
+                currentDate = currentDate.add(const Duration(days: 1));
+                break;
+              case 'weekly':
+                final weekdays = patternData['weekdays'] as List?;
+                if (weekdays != null && weekdays.isNotEmpty) {
+                  final Map<String, int> weekdayMap = {
+                    'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 7
+                  };
+                  final List<int> selectedDays = weekdays
+                      .map((day) => weekdayMap[day.toString()] ?? 0)
+                      .where((day) => day > 0)
+                      .toList();
+                  
+                  if (selectedDays.contains(currentDate.weekday)) {
+                    availableDates.add(currentDate);
+                  }
+                  currentDate = currentDate.add(const Duration(days: 1));
+                }
+                break;
+              case 'monthly':
+                final dayOfMonth = patternData['dayOfMonth'] as int? ?? event.startTime.day;
+                if (currentDate.day == dayOfMonth) {
+                  availableDates.add(currentDate);
+                }
+                // Move to next month's same day
+                DateTime nextMonth = DateTime(currentDate.year, currentDate.month + 1, 1);
+                // Handle cases where the day might not exist in next month
+                int daysInNextMonth = DateTime(nextMonth.year, nextMonth.month + 1, 0).day;
+                int targetDay = dayOfMonth > daysInNextMonth ? daysInNextMonth : dayOfMonth;
+                currentDate = DateTime(nextMonth.year, nextMonth.month, targetDay);
+                break;
+              default:
+                currentDate = currentDate.add(const Duration(days: 1));
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error parsing recurring pattern: $e');
+      }
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(20),
@@ -620,6 +1008,65 @@ class _EventBookingScreenState extends ConsumerState<EventBookingScreen> {
           ),
 
           const SizedBox(height: 12),
+
+          // Date selector for recurring events
+          if (isRecurringEvent && availableDates.isNotEmpty) ...[
+            Text(
+              'Select Date',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 40,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: availableDates.length,
+                itemBuilder: (context, index) {
+                  final date = availableDates[index];
+                  final isSelected = bookingState.selectedOccurrenceDate?.year == date.year &&
+                                   bookingState.selectedOccurrenceDate?.month == date.month &&
+                                   bookingState.selectedOccurrenceDate?.day == date.day;
+                  
+                  return Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      onTap: () {
+                        ref.read(ticketBookingControllerProvider.notifier)
+                            .setSelectedOccurrenceDate(date);
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected 
+                              ? theme.colorScheme.primary.withOpacity(0.2)  // Semi-transparent primary color
+                              : Colors.transparent,
+                          border: Border.all(
+                            color: isSelected 
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.outline.withOpacity(0.3),
+                            width: isSelected ? 1.5 : 1.0,  // Slightly thicker border for selected state
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          DateFormat('MMM d').format(date),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: isSelected 
+                                ? theme.colorScheme.primary  // Use primary color for selected text
+                                : theme.colorScheme.onSurface,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Price display
           Row(
@@ -916,60 +1363,6 @@ class _EventBookingScreenState extends ConsumerState<EventBookingScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  // Payment button - only used in mobile layout
-  Widget _buildPaymentButton(ThemeData theme, dynamic bookingState, NumberFormat currencyFormat) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          top: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.1),
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: ElevatedButton(
-          onPressed: _handlePayNow,
-          style: ElevatedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: EdgeInsets.zero,
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-          ),
-          child: Ink(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: AppTheme.primaryGradient,
-            ),
-            child: Container(
-              alignment: Alignment.center,
-              child: Text(
-                'Pay ${currencyFormat.format(bookingState.totalAmount)}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

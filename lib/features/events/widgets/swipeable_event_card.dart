@@ -271,16 +271,12 @@ class _SwipeableEventCardState extends State<SwipeableEventCard>
   }
   
   Widget _buildDateOrRecurringInfo(BuildContext context) {
-    // Check if we have a recurring pattern
     if (widget.event.recurringPattern != null && widget.event.recurringPattern!.isNotEmpty) {
       try {
-        // Parse the recurring pattern
         final patternData = json.decode(widget.event.recurringPattern!);
         final type = patternData['type'] as String? ?? 'none';
         
-        // Only proceed if we have a valid pattern type that's not 'none'
         if (type != 'none') {
-          // Choose the appropriate icon and label based on pattern
           IconData patternIcon;
           String patternLabel;
           Color patternColor = Colors.white;
@@ -306,14 +302,11 @@ class _SwipeableEventCardState extends State<SwipeableEventCard>
               patternLabel = 'Recurring';
           }
           
-          // Return the recurring pattern indicator
-          return Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: patternColor.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -321,40 +314,37 @@ class _SwipeableEventCardState extends State<SwipeableEventCard>
                     Icon(
                       patternIcon,
                       color: Colors.white,
-                      size: 14,
+                  size: 12,
                     ),
-                    const SizedBox(width: 4),
+                const SizedBox(width: 2),
                     Text(
                       patternLabel,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
           );
         }
       } catch (e) {
-        // If there's an error parsing the pattern, fall back to standard date display
         debugPrint('Error parsing recurring pattern: $e');
       }
     }
     
-    // Fall back to standard date display if no valid recurring pattern
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           Icons.calendar_today_outlined,
           color: Colors.white,
-          size: 16,
+          size: 14,
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 2),
         Text(
           _formatDate(widget.event.startTime),
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Colors.white,
           ),
         ),
@@ -419,11 +409,11 @@ class _SwipeableEventCardState extends State<SwipeableEventCard>
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      Colors.black.withOpacity(0.8),
-                      Colors.black.withOpacity(0.5),
+                      Colors.black.withOpacity(0.9),
+                      Colors.black.withOpacity(0.6),
                       Colors.transparent,
                     ],
-                    stops: const [0.0, 0.3, 0.7],
+                    stops: const [0.0, 0.2, 0.5],
                   ),
                 ),
               ),
@@ -431,30 +421,31 @@ class _SwipeableEventCardState extends State<SwipeableEventCard>
             Positioned(
               left: 16,
               right: 16,
-              bottom: 24,
+              bottom: 16,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     widget.event.title,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   if (widget.event.description != null) ...[
                     Text(
                       widget.event.description!,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.white.withOpacity(0.9),
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                   ],
                   Row(
                     children: [
@@ -462,13 +453,13 @@ class _SwipeableEventCardState extends State<SwipeableEventCard>
                         Icon(
                           Icons.location_on_outlined,
                           color: Colors.white,
-                          size: 16,
+                          size: 14,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             widget.event.location!,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Colors.white,
                             ),
                             maxLines: 1,
@@ -476,42 +467,42 @@ class _SwipeableEventCardState extends State<SwipeableEventCard>
                           ),
                         ),
                       ],
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       _buildDateOrRecurringInfo(context),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: widget.event.eventType == EventType.free 
                             ? Colors.green.withOpacity(0.8)
-                            : Color(0xFFDAA520).withOpacity(0.8), // Gold color for PAID events
-                          borderRadius: BorderRadius.circular(12),
+                            : Color(0xFFDAA520).withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           widget.event.eventType == EventType.free 
                             ? 'FREE'
                             : 'PAID',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                       if (widget.event.category != null) ...[
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             widget.event.category!,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               color: Colors.white,
                             ),
                           ),

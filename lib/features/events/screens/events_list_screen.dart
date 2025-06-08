@@ -20,11 +20,13 @@ import '../widgets/event_filters.dart';
 import '../widgets/event_search_bar.dart';
 import '../widgets/event_card_stack.dart';
 import '../widgets/swipe_instructions_overlay.dart';
+import '../widgets/banner_widget.dart';
 // import '../widgets/event_card_ad.dart'; // Ad functionality temporarily disabled
 import 'dart:async';
 import 'package:scompass_07/core/widgets/edge_to_edge_container.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:url_launcher/url_launcher.dart';
+import '../widgets/event_list_item.dart';
 
 class EventsListScreen extends ConsumerStatefulWidget {
   const EventsListScreen({super.key});
@@ -240,47 +242,48 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
     final foregroundColor = isDark ? Colors.white : Colors.black;
 
     return EdgeToEdgeContainer(
-      statusBarColor: theme.colorScheme.background,
+      statusBarColor: Colors.transparent,
       navigationBarColor: theme.colorScheme.background,
       child: ResponsiveScaffold(
-        appBar: AppBar(
-          backgroundColor: appBarColor,
-          foregroundColor: foregroundColor,
-          elevation: 0,
-          toolbarHeight: 72,
-          automaticallyImplyLeading: false,
-          titleSpacing: 8,
-          title: Container(
-            height: 44,
-            margin: const EdgeInsets.symmetric(horizontal: 8),
-            child: EventSearchBar(
-              onChanged: _onSearch,
-            ),
-          ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: IconButton(
-                icon: Icon(
-                  Icons.filter_list,
-                  size: 24,
-                  color: foregroundColor,
-                ),
-                onPressed: _showFilters,
-                style: IconButton.styleFrom(
-                  backgroundColor: isDark
-                      ? theme.colorScheme.surface
-                      : theme.colorScheme.surfaceVariant,
-                  fixedSize: const Size(40, 40),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+        body: Stack(
+          children: [
+            // Gradient Banner with SafeArea
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Container(
+                  height: 24,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        AppTheme.primaryGradientStart,
+                        AppTheme.primaryGradientEnd,
+                      ],
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      "India's #1st Swipe-to-Join Travel Experience App",
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
-        body: SafeArea(
+            // Main Content with proper padding
+            Padding(
+              padding: EdgeInsets.only(top: 24),
+              child: SafeArea(
           child: RefreshIndicator(
             onRefresh: () async {
               ref.refresh(eventControllerProvider);
@@ -310,25 +313,123 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                     ),
                   );
                 }
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      return SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 80), // Added bottom padding for better scroll experience
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       // Determine if we're on a large screen (desktop/tablet landscape)
                       final isLargeScreen = constraints.maxWidth > 900;
                       
                       // Calculate maximum card width
-                      // For smaller screens, use almost full width
-                      // For larger screens, limit width to create a better card appearance
                       final maxCardWidth = isLargeScreen 
                           ? 550.0  // Fixed width for larger screens
                           : constraints.maxWidth;
                       
                       // If we're on a small screen, just show the card
                       if (!isLargeScreen) {
-                        return Center(
-                          child: SizedBox(
-                            width: maxCardWidth,
+                                return Column(
+                                  children: [
+                                    // Enhanced Search Bar with matching width
+                                    SizedBox(
+                                      width: maxCardWidth,
+                                      child: Padding(
+                                        padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+                                        child: Container(
+                                          height: 52,
+                                          decoration: BoxDecoration(
+                                            color: theme.colorScheme.surface,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: theme.colorScheme.outline.withOpacity(0.12),
+                                              width: 1,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: theme.shadowColor.withOpacity(0.08),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(16),
+                                            child: Material(
+                                              color: Colors.transparent,
+                                              child: TextField(
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    _searchQuery = value.trim();
+                                                  });
+                                                },
+                                                style: theme.textTheme.bodyLarge?.copyWith(
+                                                  color: theme.colorScheme.onSurface,
+                                                  letterSpacing: 0.2,
+                                                ),
+                                                cursorColor: theme.colorScheme.primary,
+                                                cursorWidth: 1.5,
+                                                decoration: InputDecoration(
+                                                  hintText: 'Search for events...',
+                                                  hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                                                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                                                    letterSpacing: 0.2,
+                                                  ),
+                                                  prefixIcon: Padding(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                                    child: Icon(
+                                                      Icons.search_rounded,
+                                                      color: theme.colorScheme.onSurfaceVariant,
+                                                      size: 24,
+                                                    ),
+                                                  ),
+                                                  prefixIconConstraints: const BoxConstraints(
+                                                    minWidth: 56,
+                                                    minHeight: 52,
+                                                  ),
+                                                  suffixIcon: _searchQuery.isNotEmpty
+                                                      ? GestureDetector(
+                                                          onTap: () {
+                                                            setState(() {
+                                                              _searchQuery = '';
+                                                            });
+                                                          },
+                                                          child: Padding(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                                                            child: Icon(
+                                                              Icons.close_rounded,
+                                                              color: theme.colorScheme.onSurfaceVariant,
+                                                              size: 20,
+                                                            ),
+                                                          ),
+                                                        )
+                                                      : null,
+                                                  suffixIconConstraints: const BoxConstraints(
+                                                    minWidth: 52,
+                                                    minHeight: 52,
+                                                  ),
+                                                  border: InputBorder.none,
+                                                  enabledBorder: InputBorder.none,
+                                                  focusedBorder: InputBorder.none,
+                                                  filled: true,
+                                                  fillColor: theme.colorScheme.surface,
+                                                  contentPadding: const EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                    vertical: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    
+                                    SizedBox(
+                                      width: maxCardWidth,
+                                      height: MediaQuery.of(context).size.height * 0.68,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 8.0),
                             child: Stack(
                               children: [
                                 EventCardStack(
@@ -372,7 +473,6 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                                   onStackEmpty: () => ref.refresh(eventControllerProvider),
                                 ),
                                 
-                                // Show instructional overlay for first-time users
                                 if (_showInstructions)
                                   SwipeInstructionsOverlay(
                                     onDismiss: _dismissInstructions,
@@ -381,11 +481,90 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                               ],
                             ),
                           ),
+                                    ),
+                                    
+                                    // Add Banner Widget
+                                    const BannerWidget(),
+                                    
+                                    // Top Events Section - Vertical Layout for Mobile
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+                                      child: Column(
+                                        children: [
+                                          // Styled Divider with Top Events Text
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Container(
+                                                  height: 1,
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        theme.colorScheme.primary.withOpacity(0.1),
+                                                        theme.colorScheme.primary,
+                                                        theme.colorScheme.primary.withOpacity(0.1),
+                                                      ],
+                                                      stops: const [0.0, 0.5, 1.0],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                                child: Text(
+                                                  'Top Events',
+                                                  style: theme.textTheme.titleLarge?.copyWith(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: theme.colorScheme.onBackground,
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Container(
+                                                  height: 1,
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        theme.colorScheme.primary.withOpacity(0.1),
+                                                        theme.colorScheme.primary,
+                                                        theme.colorScheme.primary.withOpacity(0.1),
+                                                      ],
+                                                      stops: const [0.0, 0.5, 1.0],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 24),
+                                          // Vertical List of Events
+                                          ...filteredEvents.take(5).map((event) => Padding(
+                                            padding: const EdgeInsets.only(bottom: 16),
+                                            child: SizedBox(
+                                              height: 280,
+                                              child: EventListItem(
+                                                event: event,
+                                                isGridView: true,
+                                                onTap: () => context.goNamed(
+                                                  'event-details',
+                                                  pathParameters: {'eventId': event.id},
+                                                ),
+                                              ),
+                                            ),
+                                          )).toList(),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                         );
                       }
                       
                       // For large screens, create a row with side panels
-                      return Row(
+                              return Column(
+                                children: [
+                                  SizedBox(
+                                    height: MediaQuery.of(context).size.height * 0.68,
+                                    child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Center - Event Card
@@ -394,6 +573,8 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                             child: Center(
                               child: SizedBox(
                                 width: maxCardWidth,
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(vertical: 8.0),
                                 child: Stack(
                                   children: [
                                     EventCardStack(
@@ -437,13 +618,13 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                                       onStackEmpty: () => ref.refresh(eventControllerProvider),
                                     ),
                                     
-                                    // Show instructional overlay for first-time users
                                     if (_showInstructions)
                                       SwipeInstructionsOverlay(
                                         onDismiss: _dismissInstructions,
                                         screenSize: MediaQuery.of(context).size,
                                       ),
                                   ],
+                                                ),
                                 ),
                               ),
                             ),
@@ -451,9 +632,11 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                           
                           // Right panel - Event Tips and Stats
                           SizedBox(
-                            width: 280, // Fixed width for the right panel
+                                          width: 280,
+                                          child: SingleChildScrollView(
+                                            physics: const AlwaysScrollableScrollPhysics(),
                             child: Padding(
-                              padding: const EdgeInsets.only(left: 16.0, top: 16.0, right: 16.0),
+                                              padding: const EdgeInsets.only(left: 16.0, top: 16.0, right: 16.0, bottom: 80.0),
                               child: Column(
                                 children: [
                                   // Tips Card
@@ -754,12 +937,103 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
                                       ),
                                     ),
                                 ],
+                                              ),
                               ),
                             ),
                           ),
                         ],
-                      );
-                    },
+                                    ),
+                                  ),
+                                  
+                                  // Add Banner Widget only for mobile screens
+                                  if (!isLargeScreen)
+                                    const BannerWidget(),
+                                  
+                                  // Top Events Section for large screen
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 24, right: 24, bottom: 16),
+                                    child: Column(
+                                      children: [
+                                        // Styled Divider with Top Events Text
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Container(
+                                                height: 1,
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      theme.colorScheme.primary.withOpacity(0.1),
+                                                      theme.colorScheme.primary,
+                                                      theme.colorScheme.primary.withOpacity(0.1),
+                                                    ],
+                                                    stops: const [0.0, 0.5, 1.0],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                                              child: Text(
+                                                'Top Events',
+                                                style: theme.textTheme.headlineSmall?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: theme.colorScheme.onBackground,
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Container(
+                                                height: 1,
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      theme.colorScheme.primary.withOpacity(0.1),
+                                                      theme.colorScheme.primary,
+                                                      theme.colorScheme.primary.withOpacity(0.1),
+                                                    ],
+                                                    stops: const [0.0, 0.5, 1.0],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 24),
+                                        // Top Events Grid for large screen
+                                        SizedBox(
+                                          height: 320, // Slightly larger height for desktop
+                                          child: ListView.builder(
+                                            scrollDirection: Axis.horizontal,
+                                            itemCount: filteredEvents.length.clamp(0, 6), // Show max 6 items on desktop
+                                            itemBuilder: (context, index) {
+                                              final event = filteredEvents[index];
+                                              return SizedBox(
+                                                width: 320, // Slightly larger width for desktop
+                                                child: Padding(
+                                                  padding: EdgeInsets.only(
+                                                    right: index != filteredEvents.length - 1 ? 24 : 0,
+                                                  ),
+                                                  child: EventListItem(
+                                                    event: event,
+                                                    isGridView: true,
+                                                    onTap: () => context.goNamed(
+                                                      'event-details',
+                                                      pathParameters: {'eventId': event.id},
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
                   ),
                 );
               },
@@ -770,6 +1044,9 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> with Single
               ),
             ),
           ),
+              ),
+            ),
+          ],
         ),
       ),
     );
